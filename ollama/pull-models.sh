@@ -1,9 +1,13 @@
 #!/bin/bash
 # pull-models.sh — pull required Ollama models and wait until each is fully downloaded.
 #
-# Ollama's /api/pull streams newline-delimited JSON. The final line for a successful
-# pull contains "status":"success". We must consume the full stream (not just the HTTP
-# header) so this script only exits after the weights are on disk.
+# CPU (default): only qwen2.5:7b is needed (~4.4 GB).
+# GPU users run:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml
+#   which also pulls llava:7b for vision-based assessment.
+#
+# Ollama's /api/pull endpoint streams newline-delimited JSON. The final line
+# contains "status":"success" — we must consume the full stream so this script
+# only exits after the weights are on disk.
 
 set -euo pipefail
 
@@ -13,8 +17,6 @@ pull_model() {
     local name="$1"
     echo "[pull] Pulling ${name} ..."
 
-    # Stream the response body line-by-line until the server closes the connection.
-    # The last JSON line will be {"status":"success"} when the download completes.
     local last_status
     last_status=$(curl -sf "${OLLAMA}/api/pull" \
         -d "{\"name\":\"${name}\"}" \
@@ -28,7 +30,13 @@ pull_model() {
     fi
 }
 
-pull_model "llava:7b"
+# CPU default: text model for OCR-based reconcile strategy
 pull_model "qwen2.5:7b"
+
+# GPU users: also pull the vision model (llava:7b)
+# This block is only executed when PULL_VISION=1 (set in docker-compose.gpu.yml)
+if [[ "${PULL_VISION:-0}" == "1" ]]; then
+    pull_model "llava:7b"
+fi
 
 echo "[pull] All models ready."
