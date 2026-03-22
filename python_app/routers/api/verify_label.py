@@ -117,7 +117,7 @@ async def _verify_with_local_llm(image_b64: str) -> VerifyResponse:
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"AI assessment service is still starting up — the models (~11 GB) may still be downloading. Please wait a moment and try again. ({exc})"
+            detail=f"AI models are still loading (~11 GB on first boot). The UI will retry automatically. See README → Setup for details. ({exc})"
         ) from exc
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
