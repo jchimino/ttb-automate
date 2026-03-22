@@ -160,7 +160,7 @@ function showWarmingUI() {
             <div class="border border-yellow-200 rounded-lg p-6 bg-yellow-50 text-center">
                 <div class="text-3xl mb-3">⏳</div>
                 <p class="font-semibold text-yellow-800 text-lg mb-1">AI models are warming up…</p>
-                <p class="text-yellow-700 text-sm mb-3">The assessment service is still loading (~11 GB of models on first boot).<br>Retrying automatically in <strong>${s}s</strong>…</p>
+                <p class="text-yellow-700 text-sm mb-3">The AI model is still loading (~4.4 GB on first boot).<br>Retrying automatically in <strong>${s}s</strong>…</p>
                 <p class="text-xs text-yellow-600">See the <a href="https://github.com/jchimino/ttb-automate#setup" target="_blank" class="underline font-medium">README → Setup section</a> for first-boot details.</p>
             </div>`;
     };
