@@ -18,7 +18,8 @@
 # GPU: remove the `deploy` block under `ollama` if you don't have the
 # NVIDIA Container Toolkit installed.
 #
-# First boot: ollama-pull downloads llava:7b (~4.5 GB) + qwen2.5:7b (~4 GB).
+# First boot: ollama-pull downloads qwen2.5:7b (~4.4 GB). GPU users who run
+# docker compose -f docker-compose.yml -f docker-compose.gpu.yml also get llava:7b.
 # Subsequent starts reuse the ollama-data volume — no re-download.
 
 name: ttb-automate
