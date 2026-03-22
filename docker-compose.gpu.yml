@@ -1,14 +1,14 @@
 # docker-compose.gpu.yml — NVIDIA GPU override
 #
-# Use this file alongside the base compose to enable GPU acceleration for Ollama,
-# and to switch the assessment strategy to vision mode using llava:7b.
+# Enables GPU acceleration for the Ollama service.
 # Requires the NVIDIA Container Toolkit installed on the host.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 #
-# Without this file, the stack runs in CPU-only mode using the qwen2.5:7b
-# reconcile path (20-60s per label instead of 3-8s with GPU).
+# Without this file the stack runs in CPU-only mode.
+# The pull-models.sh script automatically detects the GPU and pulls llava:7b
+# in addition to qwen2.5:7b — no extra configuration needed.
 
 services:
   ollama:
@@ -19,13 +19,3 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-
-  # Pull the vision model in addition to the text model
-  ollama-pull:
-    environment:
-      PULL_VISION: "1"
-
-  # Switch the assessment service to vision strategy with llava:7b
-  assess:
-    environment:
-      OLLAMA_MODEL: llava:7b
