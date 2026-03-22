@@ -1,30 +1,28 @@
 #!/bin/bash
 # pull-models.sh — detect hardware and pull the right Ollama models.
 #
-# CPU-only → qwen2.5:7b only (~4.4 GB) — reconcile (OCR + text LLM) strategy
-# NVIDIA GPU → qwen2.5:7b + llava:7b (~8.8 GB) — vision strategy enabled
-#
-# Detection is automatic: no env vars or extra files needed.
-# Ollama's /api/pull streams newline-delimited JSON; we consume the full
-# stream so this script only exits once the weights are on disk.
+# GPU detected        → pull qwen2.5:7b + llava:7b (~8.8 GB, vision strategy)
+# CPU, no API key     → pull qwen2.5:7b only (~4.4 GB, local reconcile)
+# CPU + API key set   → skip all downloads (Anthropic handles inference)
 
 set -euo pipefail
 OLLAMA="http://ollama:11434"
 
-# ── Detect GPU ────────────────────────────────────────────────────────────────
-# Ask Ollama directly: a running GPU-enabled instance reports its GPU list
-# via GET /api/ps or shows cuda/metal in model info. The simplest and most
-# portable check is nvidia-smi — present and exit-0 only when NVIDIA drivers
-# are accessible inside the container.
 HAS_GPU=0
 if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
     HAS_GPU=1
-    echo "[pull] NVIDIA GPU detected — will pull vision model."
+    echo "[pull] NVIDIA GPU detected."
 else
-    echo "[pull] No GPU detected — CPU-only mode (reconcile strategy)."
+    echo "[pull] No GPU detected — CPU mode."
 fi
 
-# ── Pull helper ───────────────────────────────────────────────────────────────
+# Skip downloads entirely when Anthropic API key is set and no GPU is present.
+# qwen2.5:7b would never be called — no point pulling 4.4 GB.
+if [[ "$HAS_GPU" == "0" && -n "${ANTHROPIC_API_KEY:-}" ]]; then
+    echo "[pull] ANTHROPIC_API_KEY set — skipping model downloads (Anthropic handles inference)."
+    exit 0
+fi
+
 pull_model() {
     local name="$1"
     echo "[pull] Pulling ${name} ..."
@@ -40,11 +38,8 @@ pull_model() {
     fi
 }
 
-# ── Pull models based on hardware ─────────────────────────────────────────────
-# Always pull the text model (used by both CPU and GPU for reconcile fallback)
 pull_model "qwen2.5:7b"
 
-# Vision model only on GPU — too slow for CPU inference
 if [[ "$HAS_GPU" == "1" ]]; then
     pull_model "llava:7b"
 fi
