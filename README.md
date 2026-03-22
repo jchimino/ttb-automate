@@ -7,12 +7,17 @@ A containerized proof-of-concept that automates the Certificate of Label Approva
 git clone https://github.com/jchimino/ttb-automate.git
 cd ttb-automate
 
-# 2. Start everything (builds images, pulls models ~11 GB on first boot)
-docker compose up --build        # builds images, pulls models (~11 GB first boot), starts everything
+# 2. Start everything — CPU mode (works on any machine, no GPU required)
+docker compose up --build
+
+# 2a. Optional: GPU-accelerated mode (requires NVIDIA Container Toolkit)
+#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
 # 3. Once running, open your browser and navigate to:
 #    http://localhost:8004        ← main web UI
 #    http://localhost:5678        ← n8n workflow editor (login: admin / ttbexpress)
+#
+# Note: First boot pulls ~11 GB of models. Subsequent starts reuse the cached volume.
 ```
 
 ---
