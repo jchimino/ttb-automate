@@ -8,9 +8,11 @@ git clone https://github.com/jchimino/ttb-automate.git
 cd ttb-automate
 
 # 2. Start everything (builds images, pulls models ~11 GB on first boot)
-docker compose up --build        # builds, pulls models (~11 GB first boot), starts everything
-open http://localhost:8004       # web UI
-open http://localhost:5678       # n8n workflow editor (admin / ttbexpress)
+docker compose up --build        # builds images, pulls models (~11 GB first boot), starts everything
+
+# 3. Once running, open your browser and navigate to:
+#    http://localhost:8004        ← main web UI
+#    http://localhost:5678        ← n8n workflow editor (login: admin / ttbexpress)
 ```
 
 ---
