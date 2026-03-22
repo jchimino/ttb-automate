@@ -51,8 +51,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      assess:
-        condition: service_healthy
     networks:
       - ttb-network
     restart: unless-stopped
