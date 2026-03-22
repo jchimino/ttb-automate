@@ -351,7 +351,7 @@ function escHtml(str) {
 
 /* ─── Single result renderer ────────────────────────────────────────── */
 /* Called after a successful /api/verify-label response.                */
-/* Displays field-by-field compliance findings + a Groq attribution     */
+/* Displays field-by-field compliance findings + an Anthropic attribution     */
 /* badge when cloud inference was used (no local GPU available).        */
 function renderSingleResult(data) {
     const el = document.getElementById('results-single');
@@ -366,7 +366,7 @@ function renderSingleResult(data) {
     const statusIcon  = pass ? '✓ PASS'           : warn ? '⚠ REVIEW'          : '✗ FAIL';
     const statusColor = pass ? 'text-green-800'   : warn ? 'text-yellow-800'   : 'text-red-800';
 
-    // Cloud API attribution badge — shown when Groq handled the inference
+    // Cloud API attribution badge — shown when Anthropic handled the inference
     // because no local GPU was detected. This is the demo fallback path.
     const cloudBadge = data.cloud_api
         ? `<div class="mt-3 flex items-center gap-2 text-xs text-gray-500 border border-gray-200 rounded px-3 py-2 bg-gray-50">
@@ -374,7 +374,7 @@ function renderSingleResult(data) {
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
             </svg>
             <span>
-              Inference powered by <strong>${escHtml(data.cloud_provider || 'Groq')}</strong>
+              Inference powered by <strong>${escHtml(data.cloud_provider || 'Anthropic')}</strong>
               — demo mode, no local GPU detected.
               In production, all inference runs on-premises via Ollama.
             </span>
