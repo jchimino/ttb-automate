@@ -94,8 +94,36 @@ async function verifySingle() {
         document.querySelectorAll('.toast-info').forEach(t => dismissToast(t));
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({ detail: 'Server error' }));
-            throw new Error(err.detail || 'Verification failed (' + res.status + ')');
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData.detail || 'Verification failed (' + res.status + ')';
+
+            if (res.status === 502) {
+                // Assessment service still warming up — show retry UI
+                let countdown = 15;
+                const resultEl = document.getElementById('results-single');
+                const renderWaiting = (s) => {
+                    resultEl.innerHTML = `
+                        <div class="border border-yellow-200 rounded-lg p-6 bg-yellow-50 text-center">
+                            <div class="text-3xl mb-3">⏳</div>
+                            <p class="font-semibold text-yellow-800 text-lg mb-1">AI models are warming up…</p>
+                            <p class="text-yellow-700 text-sm mb-3">The assessment service is still loading (~11 GB of models on first boot).<br>Retrying automatically in <strong>${s}s</strong>…</p>
+                            <p class="text-xs text-yellow-600">See the <a href="https://github.com/jchimino/ttb-automate#setup" target="_blank" class="underline font-medium">README → Setup section</a> for first-boot details.</p>
+                        </div>`;
+                };
+                renderWaiting(countdown);
+                const timer = setInterval(() => {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(timer);
+                        verifySingle();
+                    } else {
+                        renderWaiting(countdown);
+                    }
+                }, 1000);
+            } else {
+                setResult(null, errMsg || 'Verification failed (' + res.status + ')');
+            }
+            return;
         }
         const data = await res.json();
         renderSingleResult(data);
