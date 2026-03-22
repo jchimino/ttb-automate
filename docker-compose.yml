@@ -71,6 +71,9 @@ services:
       TEXT_MODEL: qwen2.5:7b
       OCR_HOST: http://ocr:8001
       DATABASE_URL: postgresql://ttb:ttb@postgres:5432/ttb
+      # Demo cloud fallback — used for inference when no local GPU is detected.
+      # Set GROQ_API_KEY in .env. Leave blank for fully local/offline operation.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     depends_on:
       ollama-pull:
         condition: service_completed_successfully
