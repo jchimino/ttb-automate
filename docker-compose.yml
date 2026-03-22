@@ -18,8 +18,9 @@
 # GPU: remove the `deploy` block under `ollama` if you don't have the
 # NVIDIA Container Toolkit installed.
 #
-# First boot: ollama-pull downloads qwen2.5:7b (~4.4 GB). GPU users who run
-# docker compose -f docker-compose.yml -f docker-compose.gpu.yml also get llava:7b.
+# First boot: pull-models.sh auto-detects hardware.
+#   CPU  → downloads qwen2.5:7b only (~4.4 GB, reconcile strategy)
+#   GPU  → downloads qwen2.5:7b + llava:7b (~8.8 GB, vision strategy)
 # Subsequent starts reuse the ollama-data volume — no re-download.
 
 name: ttb-automate
@@ -66,7 +67,7 @@ services:
       - "8000"
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: qwen2.5:7b  # CPU: text-only reconcile strategy
+      OLLAMA_MODEL: llava:7b    # GPU: vision strategy; CPU falls back to reconcile
       TEXT_MODEL: qwen2.5:7b
       OCR_HOST: http://ocr:8001
       DATABASE_URL: postgresql://ttb:ttb@postgres:5432/ttb
