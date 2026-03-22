@@ -32,6 +32,7 @@ from datetime import datetime
 from typing import Optional
 
 import asyncio
+import traceback
 import httpx
 import psycopg2
 from PIL import Image
@@ -176,15 +177,19 @@ async def call_ollama(prompt: str, images: list[bytes], model: str) -> str:
     Vision models use images directly. Text models ignore them gracefully.
     Images are resized to max 512px to reduce token count and speed up inference.
     """
-    resized  = [_resize_image(img) for img in images]
+    # Only vision/multimodal models can process images; text-only models
+    # (e.g. qwen2.5:7b) must not receive an "images" key — Ollama rejects it.
+    is_vision = _is_vision_model(model)
+    resized  = [_resize_image(img) for img in images] if (images and is_vision) else []
     encoded  = [base64.standard_b64encode(img).decode() for img in resized]
     payload = {
         "model":   model,
         "prompt":  prompt,
-        "images":  encoded,
         "stream":  False,
         "options": {"temperature": 0.1, "num_predict": 800},
     }
+    if encoded:
+        payload["images"] = encoded
     async with httpx.AsyncClient(timeout=300.0) as client:
         r = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
         if not r.is_success:
@@ -289,13 +294,13 @@ async def assess(
             result, raw = await run_reconcile(label_bytes, form_bytes, submission_id)
     except Exception as exc:
         # Vision can fail if the model is loading or OOM — fall back to reconcile
-        print(f"[assess] {STRATEGY} strategy failed: {exc}. Falling back to reconcile.")
+        print(f"[assess] {STRATEGY} strategy failed: {exc!r}\n{traceback.format_exc()}. Falling back to reconcile.")
         try:
             result, raw = await run_reconcile(label_bytes, form_bytes, submission_id)
         except Exception as exc2:
-            print(f"[assess] Reconcile fallback also failed: {exc2}")
+            print(f"[assess] Reconcile fallback also failed: {exc2!r}\n{traceback.format_exc()}")
             from fastapi import HTTPException
-            raise HTTPException(status_code=500, detail=f"Assessment failed: {exc2}") from exc2
+            raise HTTPException(status_code=500, detail=f"Assessment failed: {type(exc2).__name__}: {exc2}") from exc2
 
     log_decision(result, STRATEGY, raw)
 
