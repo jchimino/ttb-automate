@@ -117,7 +117,7 @@ async def _verify_with_local_llm(image_b64: str) -> VerifyResponse:
     except (httpx.ConnectError, httpx.TimeoutException) as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"Local LLM unreachable at {LOCAL_LLM_URL} — is the Docker container running? ({exc})"
+            detail=f"AI assessment service is still starting up — the models (~11 GB) may still be downloading. Please wait a moment and try again. ({exc})"
         ) from exc
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
