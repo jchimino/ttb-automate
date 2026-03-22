@@ -366,8 +366,7 @@ function renderSingleResult(data) {
     const statusIcon  = pass ? '✓ PASS'           : warn ? '⚠ REVIEW'          : '✗ FAIL';
     const statusColor = pass ? 'text-green-800'   : warn ? 'text-yellow-800'   : 'text-red-800';
 
-    // Cloud API attribution badge — shown when Anthropic handled the inference
-    // because no local GPU was detected. This is the demo fallback path.
+    // Attribution badge — only shown in demo/CPU mode (no local GPU)
     const cloudBadge = data.cloud_api
         ? `<div class="mt-3 flex items-center gap-2 text-xs text-gray-500 border border-gray-200 rounded px-3 py-2 bg-gray-50">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
