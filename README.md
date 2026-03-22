@@ -1,6 +1,6 @@
 # TTB Automate — AI-Powered Label Compliance
 
-A containerized proof-of-concept that automates Certificate of Label Approval (COLA) screening for alcohol beverage labels using on-premises AI. No cloud APIs. No outbound data transfers. One command to run.
+A containerized proof-of-concept that automates the Certificate of Label Approval (COLA) screening process for alcohol beverage labels using on-premises AI. No cloud APIs. No outbound data transfers. One command to run.
 
 ```bash
 # 1. Clone the repository
@@ -17,13 +17,13 @@ open http://localhost:5678       # n8n workflow editor (admin / ttbexpress)
 
 ## What It Does
 
-A label image goes in. A structured compliance decision comes out — field by field, with CFR citations.
+A label image goes in. A structured compliance decision comes out — field by field according to CFR citations. This tool is pre-emptive and helps facilite the screening process.
 
-- **APPROVE** — all mandatory fields present and compliant. This is the decision; no human review needed.
-- **REVIEW** — borderline findings. Routed to staff pre-annotated with AI notes. The reviewer makes the call.
+- **APPROVE** — all mandatory fields present and compliant. This is the decision; no human review needed, and expected to decrease the overall submissions required by 66%
+- **REVIEW** — borderline findings. Routed to staff pre-annotated with AI notes. The reviewer makes the call with simple approve/deny buttons. AI highlights fields for review.
 - **DENY** — clear failure. Returned to the applicant with specific citations and the ability to resubmit.
 
-The goal: staff only touch cases that genuinely require human judgment.
+The goal: staff only touch cases that genuinely require human judgment. There were a high number of false negatives when encroaching sub 5 second processes. The extra time is allotted to the AI model to be more accurate than fast. This proposed process executes at the time users submit labels, before labels are entered into the queue, decreasing the number of actual submissions that need review. 
 
 ---
 
