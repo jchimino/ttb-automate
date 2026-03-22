@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}TTB Automate{% endblock %}</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CDN loads first, config is set immediately after -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary:     { DEFAULT: '#112e51', foreground: '#ffffff' },
+                        secondary:   { DEFAULT: '#005ea2', foreground: '#ffffff' },
+                        success:     { DEFAULT: '#2e7d32', foreground: '#ffffff' },
+                        destructive: { DEFAULT: '#b91c1c', foreground: '#ffffff' },
+                        warning:     { DEFAULT: '#b45309', foreground: '#ffffff' },
+                        muted:       { DEFAULT: '#f3f4f6', foreground: '#6b7280' },
+                        border:      '#d1d5db',
+                        background:  '#ffffff',
+                        foreground:  '#1f2937',
+                    }
+                }
+            }
+        };
+    </script>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <link rel="stylesheet" href="/static/css/custom.css">
+
+    <style>
+        body { font-family: 'Source Sans 3', sans-serif; }
+
+        /* Toast system */
+        #toast-container {
+            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
+            display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none;
+        }
+        .toast {
+            min-width: 280px; max-width: 420px;
+            padding: 0.875rem 1.125rem;
+            border-radius: 0.25rem; font-size: 0.875rem; font-weight: 500;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18); pointer-events: auto;
+            display: flex; align-items: flex-start; gap: 0.625rem;
+            animation: toastIn 0.22s ease;
+        }
+        .toast-body  { flex: 1; }
+        .toast-title { font-weight: 700; margin-bottom: 0.125rem; }
+        .toast-desc  { font-weight: 400; opacity: 0.85; }
+        .toast-x     { margin-left: auto; cursor: pointer; opacity: 0.55; flex-shrink: 0;
+                       font-size: 1.1rem; line-height: 1; padding: 0 0.125rem; background: none; border: none; }
+        .toast-x:hover { opacity: 1; }
+        .toast-success { background:#f0fdf4; border-left:4px solid #16a34a; color:#14532d; }
+        .toast-error   { background:#fef2f2; border-left:4px solid #dc2626; color:#7f1d1d; }
+        .toast-warning { background:#fffbeb; border-left:4px solid #d97706; color:#78350f; }
+        .toast-info    { background:#eff6ff; border-left:4px solid #2563eb; color:#1e3a8a; }
+        @keyframes toastIn  { from { transform:translateX(110%); opacity:0; } to { transform:none; opacity:1; } }
+        @keyframes toastOut { to   { transform:translateX(10px); opacity:0; } }
+        .toast-out { animation: toastOut 0.22s ease forwards; }
+
+        /* Legal warning modal — NO blur so page behind is readable */
+        #legal-overlay {
+            position: fixed; inset: 0; z-index: 10000;
+            background: rgba(0,0,0,0.75);
+            display: flex; align-items: center; justify-content: center; padding: 1rem;
+        }
+        #legal-overlay.hidden { display: none; }
+    </style>
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-white text-gray-800">
+
+<!-- Legal Warning Modal -->
+<div id="legal-overlay" class="hidden" role="dialog" aria-modal="true">
+    <div style="background:#fff;max-width:640px;width:100%;border-top:8px solid #d54309;box-shadow:0 20px 60px rgba(0,0,0,0.45);">
+        <div style="background:#112e51;color:#fff;padding:1rem 1.25rem;display:flex;align-items:center;gap:0.75rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" style="width:2rem;height:2rem;color:#d54309;flex-shrink:0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <h2 style="font-size:1.1rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">US Government Information System</h2>
+        </div>
+        <div style="padding:1.5rem;max-height:55vh;overflow-y:auto;font-size:0.875rem;color:#374151;line-height:1.65;">
+            <p style="font-weight:700;margin-bottom:0.75rem;">WARNING: You are accessing a U.S. Government information system.</p>
+            <p style="margin-bottom:0.75rem;">This system is provided for U.S. Government-authorized use only. Unauthorized or improper use of this system is prohibited and may result in disciplinary action and/or civil and criminal penalties.</p>
+            <p style="margin-bottom:0.75rem;">By using this system, you understand and consent to the following:</p>
+            <ul style="list-style:disc;padding-left:1.25rem;display:flex;flex-direction:column;gap:0.5rem;">
+                <li>You have no reasonable expectation of privacy regarding any communication or data transiting or stored on this system.</li>
+                <li>At any time, and for any lawful government purpose, the government may monitor, intercept, and search and seize any communication or data transiting or stored on this system.</li>
+                <li>Any communication or data transiting or stored on this system may be disclosed or used for any lawful government purpose.</li>
+            </ul>
+        </div>
+        <div style="background:#f9fafb;padding:1rem 1.25rem;display:flex;justify-content:flex-end;gap:0.75rem;border-top:1px solid #e5e7eb;">
+            <button onclick="legalDecline()" style="padding:0.5rem 1.5rem;background:#e5e7eb;color:#374151;font-weight:700;text-transform:uppercase;font-size:0.8125rem;cursor:pointer;border:none;font-family:inherit;">Decline</button>
+            <button onclick="legalAgree()"   style="padding:0.5rem 1.5rem;background:#005ea2;color:#fff;font-weight:700;text-transform:uppercase;font-size:0.8125rem;cursor:pointer;border:none;box-shadow:0 2px 6px rgba(0,0,0,0.22);font-family:inherit;">I Agree</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ── Hamburger menu button (fixed, all pages) ─────────────────────── -->
+<button id="hamburger-btn" onclick="toggleDocsDrawer()"
+    aria-label="Documentation menu"
+    style="position:fixed;top:0.75rem;right:1rem;z-index:8000;
+           background:#112e51;color:#fff;border:none;cursor:pointer;
+           width:2.25rem;height:2.25rem;display:flex;flex-direction:column;
+           align-items:center;justify-content:center;gap:5px;border-radius:3px;
+           box-shadow:0 2px 8px rgba(0,0,0,0.25);padding:0;">
+    <span style="display:block;width:1.1rem;height:2px;background:#fff;border-radius:1px;"></span>
+    <span style="display:block;width:1.1rem;height:2px;background:#fff;border-radius:1px;"></span>
+    <span style="display:block;width:1.1rem;height:2px;background:#fff;border-radius:1px;"></span>
+</button>
+
+<!-- ── Docs drawer overlay ───────────────────────────────────────────── -->
+<div id="docs-overlay" onclick="toggleDocsDrawer()"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:8001;"></div>
+
+<!-- ── Docs drawer panel ─────────────────────────────────────────────── -->
+<div id="docs-drawer"
+    style="position:fixed;top:0;right:0;height:100%;width:320px;max-width:90vw;
+           background:#fff;z-index:8002;transform:translateX(100%);
+           transition:transform 0.25s ease;overflow-y:auto;
+           box-shadow:-4px 0 24px rgba(0,0,0,0.18);display:flex;flex-direction:column;">
+
+    <!-- Drawer header -->
+    <div style="background:#112e51;color:#fff;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <span style="font-weight:700;font-size:0.9rem;letter-spacing:0.04em;text-transform:uppercase;">Documentation</span>
+        <button onclick="toggleDocsDrawer()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 0.25rem;">&times;</button>
+    </div>
+
+    <!-- README section -->
+    <div style="padding:1rem 1.25rem 0.5rem;">
+        <a href="/docs/readme" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;margin-bottom:0.6rem;">
+            <span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#112e51;">📄 README</span>
+        </a>
+        <div style="display:flex;flex-direction:column;gap:1px;">
+            {% set readme_sections = [
+                ("Overview",                       "overview"),
+                ("Design Goals",                   "design-goals"),
+                ("Technology Stack",               "technology-stack"),
+                ("System Architecture",            "system-architecture"),
+                ("Assessment Service Flow",        "assessment-service-flow"),
+                ("Features",                       "features"),
+                ("Compliance Checks (27 CFR)",     "compliance-checks-27-cfr"),
+                ("Setup Instructions",             "setup-instructions"),
+                ("Demo Accounts",                  "demo-accounts"),
+                ("Deployment Context",             "deployment-context"),
+                ("Technical Approach",             "technical-approach"),
+                ("Engineering & Design Decisions", "engineering--design-decisions"),
+                ("Trade-offs & Future Direction",  "trade-offs--future-direction"),
+                ("Project Structure",              "project-structure"),
+                ("API Reference",                  "api-reference"),
+            ] %}
+            {% for label, slug in readme_sections %}
+            <a href="/docs/readme#{{ slug }}"
+               style="display:block;padding:0.3rem 0.5rem;font-size:0.8rem;color:#374151;text-decoration:none;border-radius:3px;transition:background 0.1s;"
+               onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+               {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="border-top:1px solid #e5e7eb;margin:0.5rem 1.25rem;"></div>
+
+    <!-- SECURITY section -->
+    <div style="padding:0.5rem 1.25rem 1rem;">
+        <a href="/docs/security" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;margin-bottom:0.6rem;">
+            <span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#112e51;">🔒 SECURITY</span>
+        </a>
+        <div style="display:flex;flex-direction:column;gap:1px;">
+            {% set security_sections = [
+                ("Design Philosophy",                   "design-philosophy"),
+                ("Local Execution — No Cloud AI",       "local-execution--why-no-cloud-ai"),
+                ("Network Isolation",                   "network-isolation"),
+                ("Authentication & Authorization",      "authentication-and-authorization"),
+                ("Role-Based Access Control",           "role-based-access-control"),
+                ("File Upload Security",                "file-upload-security"),
+                ("Malware Scanning & Quarantine",       "malware-scanning-and-quarantine"),
+                ("Database Security",                   "database-security"),
+                ("Deployment Security",                 "deployment-security-production"),
+                ("Security Checklist",                  "security-checklist"),
+                ("Reporting Security Issues",           "reporting-security-issues"),
+            ] %}
+            {% for label, slug in security_sections %}
+            <a href="/docs/security#{{ slug }}"
+               style="display:block;padding:0.3rem 0.5rem;font-size:0.8rem;color:#374151;text-decoration:none;border-radius:3px;transition:background 0.1s;"
+               onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+               {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDocsDrawer() {
+    var drawer  = document.getElementById('docs-drawer');
+    var overlay = document.getElementById('docs-overlay');
+    var open    = drawer.style.transform === 'translateX(0%)';
+    drawer.style.transform  = open ? 'translateX(100%)' : 'translateX(0%)';
+    overlay.style.display   = open ? 'none' : 'block';
+}
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var drawer = document.getElementById('docs-drawer');
+        if (drawer.style.transform === 'translateX(0%)') toggleDocsDrawer();
+    }
+});
+</script>
+
+{% block content %}{% endblock %}
+
+<!-- Supabase init after body so SDK is loaded -->
+<script>
+    window.SUPABASE_URL      = '{{ supabase_url }}';
+    window.SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
+    try {
+        window.supabaseClient = supabase.createClient(
+            window.SUPABASE_URL,
+            window.SUPABASE_ANON_KEY,
+            { auth: { persistSession: true, autoRefreshToken: true } }
+        );
+    } catch(e) {
+        console.warn('Supabase init failed (demo mode will still work):', e.message);
+        // Provide a stub so auth.js calls never throw on undefined
+        window.supabaseClient = {
+            auth: {
+                getSession:  async () => ({ data: {}, error: null }),
+                signOut:     async () => ({}),
+                signInWithPassword: async () => ({ data: {}, error: new Error('No Supabase configured') }),
+                signUp:      async () => ({ data: {}, error: new Error('No Supabase configured') }),
+                resetPasswordForEmail: async () => ({ data: {}, error: new Error('No Supabase configured') }),
+            },
+            from: () => ({
+                select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null }) }) })
+            }),
+        };
+    }
+</script>
+
+<script src="/static/js/config.js"></script>
+<script src="/static/js/auth.js"></script>
+
+<script>
+    const _LEGAL_KEY = 'us_gov_consent';
+    function legalAgree() {
+        sessionStorage.setItem(_LEGAL_KEY, '1');
+        document.getElementById('legal-overlay').classList.add('hidden');
+    }
+    function legalDecline() { window.location.href = 'https://www.usa.gov'; }
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!sessionStorage.getItem(_LEGAL_KEY)) {
+            document.getElementById('legal-overlay').classList.remove('hidden');
+        }
+        if (window.lucide) lucide.createIcons();
+    });
+</script>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

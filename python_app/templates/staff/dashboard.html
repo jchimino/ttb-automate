@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Staff Dashboard – TTB Label Verification{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-primary text-white">
+        <div class="max-w-6xl mx-auto py-3 px-4 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-3 hover:opacity-80">
+                <div class="p-1.5 bg-white">
+                    <svg class="h-5 w-5 text-primary" fill="none" stroke="#112e51" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <span class="font-bold text-base">TTB Staff Review</span>
+            </a>
+            <div class="flex items-center gap-4 text-sm">
+                <a href="/verify" class="hover:opacity-80">Verify Labels</a>
+                <a href="/staff/audit-log" class="hover:opacity-80">Audit Log</a>
+                <button onclick="handleSignOut()" class="hover:opacity-80">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-6xl mx-auto w-full py-6 px-4">
+        <!-- Stats -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-white border border-gray-200 p-4">
+                <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Pending Review</p>
+                <p id="pending-count" class="text-3xl font-bold text-yellow-700">—</p>
+            </div>
+            <div class="bg-white border border-gray-200 p-4">
+                <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Approved</p>
+                <p id="approved-count" class="text-3xl font-bold text-green-700">—</p>
+            </div>
+            <div class="bg-white border border-gray-200 p-4">
+                <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">Rejected</p>
+                <p id="rejected-count" class="text-3xl font-bold text-red-700">—</p>
+            </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="bg-white border border-gray-200 p-3 mb-4 flex items-center gap-3 flex-wrap">
+            <label class="text-sm font-semibold text-gray-700">Filter:</label>
+            <select id="status-filter" onchange="filterApps()" class="border border-gray-300 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-secondary">
+                <option value="">All Applications</option>
+                <option value="pending_review" selected>Pending Review</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="draft">Drafts</option>
+            </select>
+            <input id="search-input" oninput="filterApps()" type="text" placeholder="Search by name…" class="border border-gray-300 text-sm px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-secondary flex-1 min-w-32">
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white border border-gray-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200">
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Product</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Type / ABV</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Submitted</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Status</th>
+                        <th class="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wide">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="app-table-body">
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="empty-state" class="hidden text-center py-12 text-gray-400">No applications match the current filter.</div>
+    </main>
+</div>
+
+<!-- Review Modal -->
+<div id="review-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;padding:1rem;">
+    <div style="background:#fff;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="background:#112e51;color:#fff;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:center;">
+            <h2 id="modal-title" style="font-size:1rem;font-weight:700;margin:0;">Review Application</h2>
+            <button onclick="closeReviewModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div style="padding:1.25rem;display:flex;flex-direction:column;gap:1rem;">
+            <div id="modal-app-info" style="padding:0.75rem;background:#f9fafb;border:1px solid #e5e7eb;font-size:0.875rem;"></div>
+            <div>
+                <label style="display:block;font-size:0.85rem;font-weight:600;color:#374151;margin-bottom:0.4rem;">Decision *</label>
+                <div style="display:flex;gap:0.5rem;">
+                    <button onclick="setDecision('approve')" id="btn-approve"
+                        style="flex:1;padding:0.6rem;border:2px solid #d1d5db;background:#fff;font-weight:600;font-size:0.85rem;cursor:pointer;font-family:inherit;color:#374151;"
+                        onmouseover="this.style.borderColor='#16a34a';this.style.color='#15803d'" onmouseout="if(currentDecision!=='approve'){this.style.borderColor='#d1d5db';this.style.color='#374151'}">
+                        ✓ Approve
+                    </button>
+                    <button onclick="setDecision('return')" id="btn-return"
+                        style="flex:1;padding:0.6rem;border:2px solid #d1d5db;background:#fff;font-weight:600;font-size:0.85rem;cursor:pointer;font-family:inherit;color:#374151;"
+                        onmouseover="this.style.borderColor='#d97706';this.style.color='#b45309'" onmouseout="if(currentDecision!=='return'){this.style.borderColor='#d1d5db';this.style.color='#374151'}">
+                        ↩ Return for Revision
+                    </button>
+                    <button onclick="setDecision('reject')" id="btn-reject"
+                        style="flex:1;padding:0.6rem;border:2px solid #d1d5db;background:#fff;font-weight:600;font-size:0.85rem;cursor:pointer;font-family:inherit;color:#374151;"
+                        onmouseover="this.style.borderColor='#dc2626';this.style.color='#b91c1c'" onmouseout="if(currentDecision!=='reject'){this.style.borderColor='#d1d5db';this.style.color='#374151'}">
+                        ✕ Reject
+                    </button>
+                </div>
+            </div>
+            <div id="reason-block" style="display:none;">
+                <label style="display:block;font-size:0.85rem;font-weight:600;color:#374151;margin-bottom:0.4rem;">Reason / Notes *</label>
+                <textarea id="review-notes" rows="3" placeholder="Explain the reason for rejection or what needs to be corrected…"
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;font-size:0.875rem;font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
+            </div>
+            <div>
+                <label style="display:block;font-size:0.85rem;font-weight:600;color:#374151;margin-bottom:0.4rem;">Reviewer Notes <span style="font-weight:400;color:#9ca3af;">(internal, optional)</span></label>
+                <textarea id="reviewer-notes" rows="2" placeholder="Internal notes visible only to staff…"
+                    style="width:100%;padding:0.5rem 0.75rem;border:1px solid #d1d5db;font-size:0.875rem;font-family:inherit;box-sizing:border-box;resize:vertical;"></textarea>
+            </div>
+            <div id="modal-error" style="display:none;padding:0.5rem 0.75rem;background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d;font-size:0.8rem;"></div>
+            <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+                <button onclick="closeReviewModal()" style="padding:0.5rem 1.25rem;border:1px solid #d1d5db;background:#fff;font-weight:600;font-size:0.875rem;cursor:pointer;font-family:inherit;">Cancel</button>
+                <button id="submit-review-btn" onclick="submitReview()" style="padding:0.5rem 1.5rem;background:#112e51;color:#fff;font-weight:700;font-size:0.875rem;border:none;cursor:pointer;font-family:inherit;">Submit Decision</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/staff-dashboard.js"></script>
+{% endblock %}

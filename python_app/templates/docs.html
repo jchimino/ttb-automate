@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ doc_title }} – TTB Automate{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+    .md-body { font-size: 0.9rem; line-height: 1.7; color: #1f2937; }
+    .md-body h1 { font-size: 1.5rem; font-weight: 700; color: #112e51; margin: 1.5rem 0 0.75rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.4rem; }
+    .md-body h2 { font-size: 1.2rem; font-weight: 700; color: #112e51; margin: 1.75rem 0 0.5rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3rem; }
+    .md-body h3 { font-size: 1rem; font-weight: 700; color: #1e3a5f; margin: 1.25rem 0 0.4rem; }
+    .md-body h4 { font-size: 0.9rem; font-weight: 700; color: #374151; margin: 1rem 0 0.3rem; }
+    .md-body p  { margin: 0.6rem 0; }
+    .md-body ul, .md-body ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+    .md-body li { margin: 0.2rem 0; }
+    .md-body code { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 3px; padding: 0.1rem 0.35rem; font-size: 0.85em; font-family: 'Courier New', monospace; }
+    .md-body pre  { background: #1f2937; color: #f9fafb; border-radius: 4px; padding: 1rem 1.25rem; overflow-x: auto; margin: 0.75rem 0; }
+    .md-body pre code { background: none; border: none; padding: 0; color: inherit; font-size: 0.82rem; }
+    .md-body table { border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-size: 0.85rem; }
+    .md-body th { background: #112e51; color: #fff; text-align: left; padding: 0.5rem 0.75rem; font-weight: 600; }
+    .md-body td { border: 1px solid #e5e7eb; padding: 0.4rem 0.75rem; }
+    .md-body tr:nth-child(even) td { background: #f9fafb; }
+    .md-body a  { color: #005ea2; text-decoration: underline; }
+    .md-body blockquote { border-left: 4px solid #d1d5db; margin: 0.75rem 0; padding: 0.5rem 1rem; color: #6b7280; background: #f9fafb; }
+    .md-body hr  { border: none; border-top: 1px solid #e5e7eb; margin: 1.5rem 0; }
+
+    /* Anchor offset for fixed hamburger button */
+    .md-body h1[id], .md-body h2[id], .md-body h3[id] {
+        scroll-margin-top: 4rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="background:#112e51;color:#fff;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+        <a href="/" style="color:#fff;text-decoration:none;font-size:0.875rem;opacity:0.75;">TTB Automate</a>
+        <span style="opacity:0.4;">/</span>
+        <span style="font-size:0.875rem;font-weight:600;">{{ doc_title }}</span>
+    </div>
+    <div style="display:flex;gap:1rem;font-size:0.8125rem;">
+        <a href="/docs/readme"   style="color:rgba(255,255,255,0.8);text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">README</a>
+        <a href="/docs/security" style="color:rgba(255,255,255,0.8);text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">SECURITY</a>
+    </div>
+</div>
+
+<div style="max-width:860px;margin:0 auto;padding:2rem 1.5rem;">
+    <!-- Loading state -->
+    <div id="doc-loading" style="text-align:center;padding:3rem;color:#9ca3af;">
+        <svg style="width:2rem;height:2rem;animation:spin 1s linear infinite;margin:0 auto 0.75rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        Loading documentation…
+    </div>
+
+    <!-- Rendered content -->
+    <div id="doc-content" class="md-body" style="display:none;"></div>
+</div>
+
+<script>
+(async () => {
+    const docName = '{{ doc_name }}';
+    const hash    = window.location.hash;
+
+    try {
+        const res = await fetch('/api/docs/' + docName);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const md  = await res.text();
+
+        // Parse markdown — add heading IDs after rendering
+        let html = marked.parse(md);
+
+        // Post-process: add GitHub-style slug IDs to headings
+        html = html.replace(/<h([1-6])>(.*?)<\/h\1>/gi, (match, level, text) => {
+            const plain = text.replace(/<[^>]*>/g, '');
+            const slug = plain.toLowerCase()
+                .replace(/[^\w\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-');
+            return `<h${level} id="${slug}">${text}</h${level}>`;
+        });
+
+        document.getElementById('doc-content').innerHTML = html;
+        document.getElementById('doc-loading').style.display = 'none';
+        document.getElementById('doc-content').style.display = 'block';
+
+        // Scroll to hash after render
+        if (hash) {
+            setTimeout(() => {
+                const el = document.querySelector(hash);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
+    } catch (e) {
+        console.error('Docs load error:', e);
+        document.getElementById('doc-loading').innerHTML =
+            '<p style="color:#b91c1c;">Failed to load documentation: ' + e.message + '</p>';
+    }
+})();
+</script>
+{% endblock %}

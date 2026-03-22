@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Verify Label Compliance – TTB Automate{% endblock %}
+
+{% block content %}
+<!-- Nav bar -->
+<div style="background:#112e51;color:#fff;padding:0.75rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+        <a href="/" style="color:#fff;text-decoration:none;font-size:0.875rem;opacity:0.75;hover:opacity:1;">TTB Automate</a>
+        <span style="opacity:0.4;">/</span>
+        <span style="font-size:0.875rem;font-weight:600;">Verify Label</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:1.25rem;font-size:0.8125rem;">
+        <a href="/history"  style="color:rgba(255,255,255,0.8);text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">History</a>
+        <a href="/settings" style="color:rgba(255,255,255,0.8);text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.8)'">Settings</a>
+        <button onclick="handleSignOut()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;padding:0.3rem 0.75rem;font-size:0.8125rem;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Sign Out</button>
+    </div>
+</div>
+
+<div class="max-w-5xl mx-auto py-8 px-4">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-primary">Verify Label Compliance</h1>
+        <p class="text-sm text-gray-500 mt-1">AI-powered TTB BAM compliance check</p>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="flex gap-1 mb-6 border-b border-gray-200">
+        <button id="mode-single" onclick="setMode('single')"
+            class="px-5 py-2.5 text-sm font-semibold border-b-2 border-secondary text-secondary">
+            Single Label
+        </button>
+        <button id="mode-batch" onclick="setMode('batch')"
+            class="px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-primary">
+            Batch (multiple labels)
+        </button>
+    </div>
+
+    <!-- ══════════════════════ SINGLE MODE ══════════════════════ -->
+    <div id="panel-single">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Upload -->
+            <div class="space-y-4">
+                <div id="drop-single"
+                     class="border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer transition-colors hover:border-secondary"
+                     onclick="document.getElementById('input-single').click()"
+                     ondragover="event.preventDefault();this.classList.add('border-secondary','bg-blue-50')"
+                     ondragleave="this.classList.remove('border-secondary','bg-blue-50')"
+                     ondrop="handleDrop(event,'single')">
+                    <svg class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                    </svg>
+                    <p class="font-semibold text-gray-700">Drag &amp; drop or click to select</p>
+                    <p class="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — high resolution recommended</p>
+                    <input type="file" id="input-single" accept="image/*" class="hidden" onchange="loadSingleFile(this.files[0])">
+                </div>
+
+                <!-- Preview -->
+                <div id="preview-single" class="hidden">
+                    <div class="relative border border-gray-200 rounded overflow-hidden">
+                        <img id="img-single" src="" alt="Label preview" class="w-full max-h-64 object-contain bg-gray-50">
+                        <button onclick="clearSingle()" class="absolute top-2 right-2 bg-white border border-gray-300 rounded-full w-7 h-7 flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 text-sm">✕</button>
+                    </div>
+                    <p id="fname-single" class="text-xs text-gray-500 mt-1 truncate"></p>
+                </div>
+
+                <!-- Product details -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Product Details <span class="text-gray-400 font-normal">(optional)</span>
+                    </label>
+                    <textarea id="details-single" rows="3" placeholder="Brand name, product type, ABV, net contents…"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary resize-none"></textarea>
+                </div>
+
+                <button id="btn-single" onclick="verifySingle()" disabled
+                    class="w-full bg-secondary text-white font-bold py-2.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-800 transition-colors">
+                    Verify Compliance
+                </button>
+            </div>
+
+            <!-- Results -->
+            <div id="results-single">
+                <div class="border border-gray-200 rounded p-6 bg-gray-50 h-full flex items-center justify-center text-center min-h-48">
+                    <div>
+                        <svg class="h-10 w-10 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-sm text-gray-400">Results will appear here after verification</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════ BATCH MODE ══════════════════════ -->
+    <div id="panel-batch" class="hidden">
+        <div class="space-y-4">
+
+            <!-- Drop zone -->
+            <div id="drop-batch"
+                 class="border-2 border-dashed border-gray-300 rounded p-8 text-center cursor-pointer transition-colors hover:border-secondary"
+                 onclick="document.getElementById('input-batch').click()"
+                 ondragover="event.preventDefault();this.classList.add('border-secondary','bg-blue-50')"
+                 ondragleave="this.classList.remove('border-secondary','bg-blue-50')"
+                 ondrop="handleDrop(event,'batch')">
+                <svg class="h-12 w-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+                </svg>
+                <p class="font-semibold text-gray-700">Drag &amp; drop multiple images or click to select</p>
+                <p class="text-xs text-gray-400 mt-1">Select up to 20 label images at once</p>
+                <input type="file" id="input-batch" accept="image/*" multiple class="hidden" onchange="loadBatchFiles(this.files)">
+            </div>
+
+            <!-- Queue -->
+            <div id="batch-queue" class="hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold text-gray-700" id="batch-count-label">0 images queued</h3>
+                    <div class="flex gap-2">
+                        <button onclick="clearBatch()" class="text-xs text-gray-500 hover:text-red-600 border border-gray-300 px-3 py-1 rounded">Clear all</button>
+                        <button id="btn-batch" onclick="verifyBatch()"
+                            class="text-xs bg-secondary text-white font-bold px-4 py-1.5 rounded hover:bg-blue-800 transition-colors">
+                            Verify All
+                        </button>
+                    </div>
+                </div>
+                <div id="batch-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"></div>
+            </div>
+
+            <!-- Batch results -->
+            <div id="batch-results" class="hidden space-y-3"></div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/verify.js"></script>
+{% endblock %}

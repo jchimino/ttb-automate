@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}TTB Automate – Certificate of Label Approval System{% endblock %}
+
+{% block content %}
+<!-- Gov Banner -->
+<div style="background:#f0f0f0;border-bottom:1px solid #d9d9d9;padding:0.35rem 1rem;font-size:0.75rem;display:flex;align-items:center;gap:0.5rem;">
+    <span>🇺🇸</span>
+    <span>An official test environment for the interview of an IT Specialist (AI).</span>
+</div>
+
+<!-- Header -->
+<header style="background:#112e51;color:#fff;padding:1rem 2rem;">
+    <div style="max-width:70rem;margin:0 auto;display:flex;align-items:center;gap:1rem;">
+        <div style="background:#fff;padding:0.5rem;">
+            <svg style="width:2rem;height:2rem;color:#112e51;fill:none;stroke:#112e51;stroke-width:2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+        </div>
+        <div>
+            <h1 style="font-size:1.25rem;font-weight:700;margin:0;">TTB Automate</h1>
+            <p style="font-size:0.8rem;opacity:0.8;margin:0;">Alcohol and Tobacco Tax and Trade Bureau</p>
+        </div>
+    </div>
+</header>
+
+<!-- Hero -->
+<div style="background:linear-gradient(to bottom,#f0f4f8,#fff);padding:3rem 2rem;text-align:center;">
+    <div style="max-width:50rem;margin:0 auto;">
+        <h2 style="font-size:2rem;font-weight:700;color:#112e51;margin-bottom:0.5rem;">Alcohol Labeling and Formulation Division</h2>
+        <p style="font-size:1.1rem;color:#5a5a5a;margin-bottom:0.25rem;">(ALFD)</p>
+        <p style="font-size:1rem;color:#5a5a5a;">Certificate of Label Approval (COLA) Application and Review System</p>
+    </div>
+</div>
+
+<!-- Portal cards -->
+<div style="max-width:54rem;margin:0 auto;padding:2.5rem 1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+
+    <!-- Industry card -->
+    <div style="border:2px solid #d1d5db;padding:2rem;display:flex;flex-direction:column;gap:1rem;transition:border-color 0.2s;" onmouseover="this.style.borderColor='#005ea2'" onmouseout="this.style.borderColor='#d1d5db'">
+        <div style="text-align:center;">
+            <div style="background:#eff6ff;padding:1.25rem;display:inline-block;margin-bottom:1rem;">
+                <svg style="width:3rem;height:3rem;stroke:#005ea2;fill:none;stroke-width:1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+            </div>
+            <h3 style="font-size:1.375rem;font-weight:700;color:#112e51;margin:0 0 0.5rem;">Industry Members</h3>
+            <p style="font-size:0.9rem;color:#6b7280;margin:0;">Manufacturers, importers, and bottlers seeking COLA approval</p>
+        </div>
+        <ul style="font-size:0.875rem;color:#6b7280;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.4rem;">
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#005ea2;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Submit new label applications</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#005ea2;border-radius:50%;flex-shrink:0;display:inline-block;"></span>AI-powered pre-submission verification</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#005ea2;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Track application status</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#005ea2;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Communicate with TTB staff</li>
+        </ul>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:auto;">
+            <a href="/auth?portal=industry" style="display:block;text-align:center;background:#005ea2;color:#fff;font-weight:700;padding:0.65rem;text-decoration:none;font-size:0.9rem;" onmouseover="this.style.background='#004785'" onmouseout="this.style.background='#005ea2'">Sign In / Register</a>
+            <button onclick="demoLogin('user45@gmail.com','industry')" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-weight:600;padding:0.5rem;font-size:0.8rem;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">⚡ Demo: Industry Account</button>
+        </div>
+    </div>
+
+    <!-- Staff card -->
+    <div style="border:2px solid #d1d5db;padding:2rem;display:flex;flex-direction:column;gap:1rem;" onmouseover="this.style.borderColor='#112e51'" onmouseout="this.style.borderColor='#d1d5db'">
+        <div style="text-align:center;">
+            <div style="background:#f0f4f8;padding:1.25rem;display:inline-block;margin-bottom:1rem;">
+                <svg style="width:3rem;height:3rem;stroke:#112e51;fill:none;stroke-width:1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </div>
+            <h3 style="font-size:1.375rem;font-weight:700;color:#112e51;margin:0 0 0.5rem;">TTB Staff</h3>
+            <p style="font-size:0.9rem;color:#6b7280;margin:0;">Compliance agents and administrators</p>
+        </div>
+        <ul style="font-size:0.875rem;color:#6b7280;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.4rem;">
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#112e51;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Review pending applications</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#112e51;border-radius:50%;flex-shrink:0;display:inline-block;"></span>AI-assisted risk scoring</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#112e51;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Approve, reject, or return labels</li>
+            <li style="display:flex;align-items:center;gap:0.5rem;"><span style="width:0.5rem;height:0.5rem;background:#112e51;border-radius:50%;flex-shrink:0;display:inline-block;"></span>Full audit trail</li>
+        </ul>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:auto;">
+            <a href="/auth?portal=staff" style="display:block;text-align:center;background:#112e51;color:#fff;font-weight:700;padding:0.65rem;text-decoration:none;font-size:0.9rem;" onmouseover="this.style.background='#0a1e35'" onmouseout="this.style.background='#112e51'">TTB Staff Login</a>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;">
+                <button onclick="demoLogin('john@ttb.gov','staff')" style="background:#f0f4f8;border:1px solid #c7d2de;color:#112e51;font-weight:600;padding:0.5rem;font-size:0.75rem;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f0f4f8'">⚡ Demo: Staff</button>
+                <button onclick="demoLogin('admin47@treasury.gov','admin')" style="background:#f0f4f8;border:1px solid #c7d2de;color:#112e51;font-weight:600;padding:0.5rem;font-size:0.75rem;cursor:pointer;font-family:inherit;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f0f4f8'">⚡ Demo: Admin</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TEST YOUR LABEL ──────────────────────────────────────────────── -->
+<div style="max-width:54rem;margin:0 auto 2rem;padding:0 1.5rem;">
+    <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #d4af37;padding:2rem 2rem;display:flex;align-items:center;justify-content:space-between;gap:2rem;position:relative;overflow:hidden;">
+        <!-- Decorative shimmer -->
+        <div style="position:absolute;top:-40px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(212,175,55,0.15) 0%,transparent 70%);pointer-events:none;"></div>
+        <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
+                <span style="background:#d4af37;color:#1a1a2e;font-size:0.7rem;font-weight:800;padding:0.2rem 0.5rem;letter-spacing:0.08em;">LIVE DEMO</span>
+            </div>
+            <p style="font-size:1.25rem;font-weight:800;color:#fff;margin:0 0 0.4rem;letter-spacing:-0.01em;">🧪 Test Your Label</p>
+            <p style="font-size:0.875rem;color:rgba(255,255,255,0.7);margin:0;line-height:1.5;">See the prototype in action — load a sample label or upload your own and get instant TTB compliance feedback. No login required.</p>
+        </div>
+        <button onclick="openLabelTestModal()" style="background:#d4af37;color:#1a1a2e;font-weight:800;padding:0.75rem 1.75rem;font-size:0.95rem;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;letter-spacing:0.02em;" onmouseover="this.style.background='#c9a227'" onmouseout="this.style.background='#d4af37'">Run AI Check →</button>
+    </div>
+</div>
+
+
+<!-- ── TEST YOUR LABEL MODAL ──────────────────────────────────────── -->
+<div id="label-test-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;overflow-y:auto;padding:2rem 1rem;">
+    <div style="background:#fff;max-width:900px;margin:0 auto;position:relative;">
+
+        <!-- Modal header -->
+        <div style="background:#1a1a2e;padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <p style="color:#d4af37;font-weight:800;font-size:1.1rem;margin:0;">🧪 Test Your Label — Live AI Demo</p>
+                <p style="color:rgba(255,255,255,0.6);font-size:0.8rem;margin:0.2rem 0 0;">No login required · Running against TTB 27 CFR compliance rules</p>
+            </div>
+            <button onclick="closeLabelTestModal()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:1.25rem;width:2rem;height:2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">✕</button>
+        </div>
+
+        <!-- Modal body -->
+        <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;" id="ltm-body">
+
+            <!-- Left: label selector -->
+            <div>
+                <p style="font-weight:700;color:#112e51;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.75rem;">Choose a Sample Label</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+
+                    <!-- Sample 1 -->
+                    <div id="sample-card-bourbon" onclick="selectSample('bourbon')"
+                         style="border:2px solid #e5e7eb;cursor:pointer;padding:0.5rem;transition:border-color 0.15s;"
+                         onmouseover="this.style.borderColor='#d4af37'" onmouseout="if(currentSample!=='bourbon')this.style.borderColor='#e5e7eb'">
+                        <img src="/static/samples/sample-bourbon.jpg" alt="Bourbon label" style="width:100%;height:140px;object-fit:cover;display:block;">
+                        <p style="font-size:0.75rem;font-weight:600;color:#1a1a2e;margin:0.4rem 0 0.1rem;">Kentucky Bourbon</p>
+                        <p style="font-size:0.7rem;color:#6b7280;margin:0;">Spirits · Compliant</p>
+                    </div>
+
+                    <!-- Sample 2 -->
+                    <div id="sample-card-wine" onclick="selectSample('wine')"
+                         style="border:2px solid #e5e7eb;cursor:pointer;padding:0.5rem;transition:border-color 0.15s;"
+                         onmouseover="this.style.borderColor='#722f37'" onmouseout="if(currentSample!=='wine')this.style.borderColor='#e5e7eb'">
+                        <img src="/static/samples/sample-wine.jpg" alt="Wine label" style="width:100%;height:140px;object-fit:cover;display:block;">
+                        <p style="font-size:0.75rem;font-weight:600;color:#1a1a2e;margin:0.4rem 0 0.1rem;">Chilean Red Wine</p>
+                        <p style="font-size:0.7rem;color:#722f37;margin:0;">Wine · Issues present</p>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                    <span style="font-size:0.75rem;color:#9ca3af;">or upload your own</span>
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                </div>
+
+                <!-- Upload zone -->
+                <div id="ltm-drop" onclick="document.getElementById('ltm-file-input').click()"
+                     style="border:2px dashed #d1d5db;padding:1.25rem;text-align:center;cursor:pointer;transition:border-color 0.15s;"
+                     ondragover="event.preventDefault();this.style.borderColor='#005ea2';this.style.background='#eff6ff'"
+                     ondragleave="this.style.borderColor='#d1d5db';this.style.background=''"
+                     ondrop="ltmHandleDrop(event)"
+                     onmouseover="this.style.borderColor='#005ea2'" onmouseout="this.style.borderColor='#d1d5db'">
+                    <p style="font-size:0.8rem;color:#6b7280;margin:0;">📁 Drop image or click to select</p>
+                    <p style="font-size:0.7rem;color:#9ca3af;margin:0.25rem 0 0;">JPG, PNG, WEBP</p>
+                    <input type="file" id="ltm-file-input" accept="image/*" style="display:none" onchange="ltmLoadFile(this.files[0])">
+                </div>
+
+                <!-- Selected image preview -->
+                <div id="ltm-preview" style="display:none;margin-top:0.75rem;position:relative;">
+                    <img id="ltm-preview-img" src="" style="width:100%;max-height:200px;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;">
+                    <p id="ltm-preview-name" style="font-size:0.7rem;color:#6b7280;margin:0.3rem 0 0;"></p>
+                </div>
+
+                <!-- Run button -->
+                <button id="ltm-run-btn" onclick="ltmRunCheck()" disabled
+                    style="width:100%;margin-top:1rem;background:#1a1a2e;color:#d4af37;font-weight:800;padding:0.75rem;font-size:0.9rem;border:none;cursor:pointer;font-family:inherit;letter-spacing:0.02em;opacity:0.4;"
+                    onmouseover="if(!this.disabled)this.style.background='#2d2d5e'" onmouseout="if(!this.disabled)this.style.background='#1a1a2e'">
+                    ▶ Run AI Compliance Check
+                </button>
+            </div>
+
+            <!-- Right: results panel -->
+            <div>
+                <p style="font-weight:700;color:#112e51;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.75rem;">AI Analysis Results</p>
+                <div id="ltm-results" style="min-height:380px;border:1px solid #e5e7eb;background:#f9fafb;padding:1.25rem;display:flex;align-items:center;justify-content:center;">
+                    <div style="text-align:center;color:#9ca3af;">
+                        <p style="font-size:2rem;margin:0;">🏷️</p>
+                        <p style="font-size:0.8rem;margin:0.5rem 0 0;">Select a label and run the check<br>to see AI feedback here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer style="background:#112e51;color:rgba(255,255,255,0.7);text-align:center;padding:1.25rem;font-size:0.8rem;margin-top:auto;">
+    <p style="margin:0;">TTB Automate — Prototype | Alcohol and Tobacco Tax and Trade Bureau | U.S. Department of the Treasury</p>
+</footer>
+
+<script>
+function demoLogin(email, role) {
+    // Set server-readable cookie (breaks redirect loop — server checks this before rendering pages)
+    document.cookie = 'demo_role=' + role + '; path=/; max-age=86400; SameSite=Lax';
+    // Also store full session in sessionStorage for API bearer tokens
+    const session = { demo: true, user: { id: 'demo-' + role + '-001', email, role }, token: 'demo-' + role };
+    try { sessionStorage.setItem('demo_session', JSON.stringify(session)); } catch(e) {}
+    window.location.href = (role === 'industry') ? '/industry/dashboard' : '/staff/dashboard';
+}
+// Auto-redirect is now handled server-side via the demo_role cookie
+
+/* ── TEST YOUR LABEL MODAL ─────────────────────────────────────────── */
+let currentSample = null;   // 'bourbon' | 'wine' | null
+let ltmImageB64   = null;   // base64 data URL of selected image
+
+const SAMPLE_URLS = {
+    bourbon: '/static/samples/sample-bourbon.jpg',
+    wine:    '/static/samples/sample-wine.jpg',
+};
+
+function openLabelTestModal() {
+    document.getElementById('label-test-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+function closeLabelTestModal() {
+    document.getElementById('label-test-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+// Close on backdrop click
+document.getElementById('label-test-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLabelTestModal();
+});
+
+function selectSample(key) {
+    currentSample = key;
+    // Update card borders
+    ['bourbon','wine'].forEach(k => {
+        const card = document.getElementById('sample-card-' + k);
+        card.style.borderColor = k === key ? (k === 'bourbon' ? '#d4af37' : '#722f37') : '#e5e7eb';
+    });
+    // Load the image as base64
+    fetch(SAMPLE_URLS[key])
+        .then(r => r.blob())
+        .then(blob => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                ltmImageB64 = e.target.result;
+                // Show preview
+                document.getElementById('ltm-preview-img').src = ltmImageB64;
+                document.getElementById('ltm-preview-name').textContent = key === 'bourbon' ? 'sample-bourbon.jpg' : 'sample-wine.jpg';
+                document.getElementById('ltm-preview').style.display = 'block';
+                document.getElementById('ltm-drop').style.display = 'none';
+                ltmEnableBtn();
+                // Auto-run immediately when sample is selected
+                ltmRunCheck();
+            };
+            reader.readAsDataURL(blob);
+        });
+}
+
+function ltmHandleDrop(e) {
+    e.preventDefault();
+    document.getElementById('ltm-drop').style.borderColor = '#d1d5db';
+    document.getElementById('ltm-drop').style.background = '';
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    if (files.length) ltmLoadFile(files[0]);
+}
+
+function ltmLoadFile(file) {
+    if (!file) return;
+    currentSample = null;
+    ['bourbon','wine'].forEach(k => { document.getElementById('sample-card-' + k).style.borderColor = '#e5e7eb'; });
+    const reader = new FileReader();
+    reader.onload = e => {
+        ltmImageB64 = e.target.result;
+        document.getElementById('ltm-preview-img').src = ltmImageB64;
+        document.getElementById('ltm-preview-name').textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+        document.getElementById('ltm-preview').style.display = 'block';
+        document.getElementById('ltm-drop').style.display = 'none';
+        ltmEnableBtn();
+    };
+    reader.readAsDataURL(file);
+}
+
+function ltmEnableBtn() {
+    const btn = document.getElementById('ltm-run-btn');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+}
+
+async function ltmRunCheck() {
+    if (!ltmImageB64) return;
+    const btn = document.getElementById('ltm-run-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analyzing label…';
+    btn.style.opacity = '0.7';
+
+    document.getElementById('ltm-results').innerHTML = `
+        <div style="text-align:center;color:#6b7280;">
+            <div style="width:36px;height:36px;border:3px solid #d4af37;border-top-color:transparent;border-radius:50%;animation:ltm-spin 0.8s linear infinite;margin:0 auto 0.75rem;"></div>
+            <p style="font-size:0.8rem;margin:0;">Running AI compliance check…</p>
+            <p style="font-size:0.7rem;color:#9ca3af;margin:0.3rem 0 0;">This may take 10–30 seconds</p>
+        </div>`;
+
+    try {
+        const res = await fetch('/api/verify-label', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer demo-industry',
+                'Content-Type':  'application/json',
+            },
+            body: JSON.stringify({ image_base64: ltmImageB64 }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'Server error ' + res.status }));
+            throw new Error(err.detail || 'Request failed');
+        }
+        const data = await res.json();
+        ltmRenderResults(data);
+    } catch(err) {
+        document.getElementById('ltm-results').innerHTML = `
+            <div style="padding:1rem;">
+                <p style="color:#dc2626;font-weight:700;margin:0 0 0.5rem;">⚠ Check failed</p>
+                <p style="font-size:0.8rem;color:#555;margin:0;">${err.message}</p>
+                <p style="font-size:0.75rem;color:#9ca3af;margin:0.5rem 0 0;">Make sure the app server is running.</p>
+            </div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ Run AI Compliance Check';
+        btn.style.opacity = '1';
+    }
+}
+
+function ltmRenderResults(data) {
+    const pass = data.overall_status === 'PASS';
+    const score = data.compliance_score ?? 0;
+    const scoreColor = score >= 80 ? '#16a34a' : score >= 60 ? '#d97706' : '#dc2626';
+
+    const checksHtml = (data.checks || []).map(c => {
+        const icon = c.status === 'PASS' ? '✅' : c.status === 'WARN' ? '⚠️' : '❌';
+        const bg   = c.status === 'PASS' ? '#f0fdf4' : c.status === 'WARN' ? '#fffbeb' : '#fef2f2';
+        const border = c.status === 'PASS' ? '#bbf7d0' : c.status === 'WARN' ? '#fde68a' : '#fecaca';
+        return `<div style="background:${bg};border:1px solid ${border};padding:0.5rem 0.6rem;margin-bottom:0.4rem;font-size:0.75rem;">
+            <div style="display:flex;align-items:flex-start;gap:0.4rem;">
+                <span style="flex-shrink:0;">${icon}</span>
+                <div>
+                    <span style="font-weight:700;color:#111;">${c.field}</span>
+                    ${c.label_value ? `<span style="color:#555;"> — ${c.label_value}</span>` : ''}
+                    ${c.reason ? `<div style="color:#6b7280;margin-top:0.15rem;">${c.reason}</div>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    const failsHtml = (data.critical_failures || []).length ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;padding:0.6rem 0.75rem;margin-bottom:0.75rem;">
+            <p style="font-weight:700;color:#dc2626;font-size:0.75rem;margin:0 0 0.3rem;">Critical Failures</p>
+            ${data.critical_failures.map(f => `<p style="font-size:0.72rem;color:#7f1d1d;margin:0.15rem 0;">• ${f}</p>`).join('')}
+        </div>` : '';
+
+    document.getElementById('ltm-results').innerHTML = `
+        <div style="overflow-y:auto;max-height:420px;">
+            <!-- Score header -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid #e5e7eb;">
+                <div>
+                    <p style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0;">Commodity</p>
+                    <p style="font-weight:700;color:#1a1a2e;font-size:0.9rem;margin:0;">${data.commodity_type || '—'}</p>
+                </div>
+                <div style="text-align:center;">
+                    <p style="font-size:2rem;font-weight:900;color:${scoreColor};margin:0;line-height:1;">${score}</p>
+                    <p style="font-size:0.65rem;color:#6b7280;margin:0;">/ 100</p>
+                </div>
+                <div style="text-align:right;">
+                    <span style="background:${pass ? '#16a34a' : '#dc2626'};color:#fff;font-weight:800;font-size:0.75rem;padding:0.3rem 0.75rem;">
+                        ${pass ? '✓ PASS' : '✗ FAIL'}
+                    </span>
+                    ${data.engine ? `<p style="font-size:0.65rem;color:#9ca3af;margin:0.3rem 0 0;">via ${data.engine}</p>` : ''}
+                </div>
+            </div>
+            ${failsHtml}
+            <div style="font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.4rem;">Field Checks</div>
+            ${checksHtml}
+        </div>`;
+}
+
+// Spinner keyframe
+const ltmStyle = document.createElement('style');
+ltmStyle.textContent = '@keyframes ltm-spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(ltmStyle);
+</script>
+{% endblock %}

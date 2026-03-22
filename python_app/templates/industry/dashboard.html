@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Industry Dashboard - TTB Label Verification{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-background">
+    <!-- Header -->
+    <header class="bg-primary text-primary-foreground">
+        <div class="container mx-auto py-4 px-4">
+            <div class="flex items-center justify-between">
+                <a href="/" class="flex items-center gap-3 hover:opacity-80">
+                    <div class="p-2 bg-secondary">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-lg font-bold">TTB Applications</h1>
+                </a>
+                <div class="flex items-center gap-4">
+                    <a href="/verify" class="text-sm hover:opacity-80">Verify Labels</a>
+                    <a href="/settings" class="text-sm hover:opacity-80">Settings</a>
+                    <button onclick="handleSignOut()" class="text-sm hover:opacity-80">Sign Out</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 container mx-auto py-8 px-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-primary">Your Applications</h2>
+                    <p class="text-muted-foreground">Manage your COLA applications</p>
+                </div>
+                <button id="new-app-btn" class="bg-secondary text-secondary-foreground font-bold py-2 px-4 rounded-lg hover:bg-blue-700">
+                    New Application
+                </button>
+            </div>
+
+            <!-- Applications List -->
+            <div id="applications-list" class="space-y-4">
+                <!-- Applications will be loaded here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="text-center py-12 border border-border rounded-lg">
+                <svg class="h-12 w-12 mx-auto text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <p class="text-muted-foreground mb-4">No applications yet</p>
+                <button id="create-first-btn" class="bg-secondary text-secondary-foreground font-bold py-2 px-6 rounded-lg hover:bg-blue-700">
+                    Create First Application
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/industry-dashboard.js"></script>
+{% endblock %}

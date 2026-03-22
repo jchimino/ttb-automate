@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Application Detail – TTB Automate{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-gray-50">
+    <!-- Header -->
+    <header class="bg-primary text-white">
+        <div class="max-w-5xl mx-auto py-3 px-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <a href="/industry/dashboard" class="text-white hover:opacity-80 text-sm">← My Applications</a>
+                <span class="opacity-40">/</span>
+                <span class="font-semibold text-sm" id="app-title">Loading…</span>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+                <a href="/verify" class="hover:opacity-80">Verify Labels</a>
+                <button onclick="handleSignOut()" class="hover:opacity-80">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-5xl mx-auto w-full py-6 px-4">
+        <!-- Loading -->
+        <div id="loading" class="text-center py-16 text-gray-400">
+            <svg class="h-8 w-8 animate-spin mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Loading application…
+        </div>
+
+        <!-- Content -->
+        <div id="content" class="hidden grid gap-6 lg:grid-cols-3">
+
+            <!-- Main info (left 2/3) -->
+            <div class="lg:col-span-2 space-y-4">
+                <!-- Status card -->
+                <div class="bg-white border border-gray-200 p-4">
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-900" id="app-name">—</h2>
+                            <p class="text-sm text-gray-500" id="app-id-display">—</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span id="app-status" class="px-4 py-1.5 rounded font-bold text-sm">—</span>
+                            <button id="submit-btn" onclick="submitApplication()" class="hidden bg-secondary text-white font-bold px-4 py-1.5 text-sm hover:bg-blue-800">
+                                Submit for Review
+                            </button>
+                        </div>
+                    </div>
+                    <div id="rejection-banner" class="hidden mt-3 p-3 bg-red-50 border-l-4 border-red-500">
+                        <p class="font-bold text-red-900 text-sm">Rejection Reason</p>
+                        <p id="rejection-text" class="text-sm text-red-800 mt-0.5"></p>
+                    </div>
+                </div>
+
+                <!-- Application fields -->
+                <div class="bg-white border border-gray-200 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-4">Application Details</h3>
+                    <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                        <div><dt class="text-gray-500 font-medium">Product Name</dt><dd id="product-name" class="text-gray-900 font-semibold">—</dd></div>
+                        <div><dt class="text-gray-500 font-medium">Brand Name</dt><dd id="brand-name" class="text-gray-900">—</dd></div>
+                        <div><dt class="text-gray-500 font-medium">Product Type</dt><dd id="product-type" class="text-gray-900">—</dd></div>
+                        <div><dt class="text-gray-500 font-medium">Alcohol Content</dt><dd id="alcohol-content" class="text-gray-900">—</dd></div>
+                        <div><dt class="text-gray-500 font-medium">Net Contents</dt><dd id="net-contents" class="text-gray-900">—</dd></div>
+                        <div><dt class="text-gray-500 font-medium">Created</dt><dd id="created-at" class="text-gray-900">—</dd></div>
+                    </dl>
+                </div>
+
+                <!-- AI verification results -->
+                <div id="verification-section" class="hidden bg-white border border-gray-200 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">AI Verification Results</h3>
+                    <div id="results-content"></div>
+                </div>
+            </div>
+
+            <!-- Sidebar (right 1/3) -->
+            <div class="space-y-4">
+                <!-- Label Preview -->
+                <div id="label-preview-card" class="hidden bg-white border border-gray-200 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Label</h3>
+                    <a id="label-img-link" href="#" target="_blank" title="Open full size">
+                        <img id="label-img" src="" alt="Label preview" class="w-full object-contain border border-gray-100 hover:opacity-90 transition-opacity cursor-zoom-in" style="max-height:280px;">
+                    </a>
+                </div>
+
+                <!-- Status timeline -->
+                <div class="bg-white border border-gray-200 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Status Timeline</h3>
+                    <div id="status-timeline" class="space-y-3 text-sm"></div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="bg-white border border-gray-200 p-4">
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Actions</h3>
+                    <div class="space-y-2">
+                        <a id="verify-link" href="/verify" class="block text-center border border-secondary text-secondary font-semibold py-2 text-sm hover:bg-blue-50">Run Label Verification</a>
+                        <a href="/industry/dashboard" class="block text-center border border-gray-300 text-gray-600 font-semibold py-2 text-sm hover:bg-gray-50">Back to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+window.APP_ID = "{{ app_id }}";
+</script>
+<script src="/static/js/application-detail.js"></script>
+{% endblock %}

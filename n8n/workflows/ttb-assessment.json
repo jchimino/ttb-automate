@@ -1,0 +1,280 @@
+{
+  "name": "TTB Label Assessment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ttb-submission",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-a1b2c3d40001",
+      "name": "Webhook \u2014 Receive Submission",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        240
+      ],
+      "webhookId": "ttb-submission"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://assess:8000/assess",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "label_images",
+              "inputDataFieldName": "={{ $json.label_image_field || 'label_image' }}"
+            },
+            {
+              "name": "submission_id",
+              "value": "={{ $json.submission_id || $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "a1b2c3d4-0002-0002-0002-a1b2c3d40002",
+      "name": "POST \u2192 /assess",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-approve",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "APPROVE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-0003-0003-a1b2c3d40003",
+      "name": "Decision?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle APPROVE \u2014 update TTB Automate application status\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'APPROVE',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: assessment.fields,\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'approved',\n    processed_at: new Date().toISOString(),\n  }\n};"
+      },
+      "id": "a1b2c3d4-0004-0004-0004-a1b2c3d40004",
+      "name": "Handle APPROVE",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-review",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "REVIEW",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-0005-0005-a1b2c3d40005",
+      "name": "Review or Deny?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle REVIEW \u2014 flag for human review\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'REVIEW',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: assessment.fields,\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'pending_review',\n    review_reason: 'Flagged by local LLM for manual TTB staff review',\n    processed_at: new Date().toISOString(),\n  }\n};"
+      },
+      "id": "a1b2c3d4-0006-0006-0006-a1b2c3d40006",
+      "name": "Handle REVIEW",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Handle DENY \u2014 reject the label\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'DENY',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: (assessment.fields || []).filter(f => f.status === 'FAIL'),\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'rejected',\n    rejection_reason: assessment.reasoning || 'Label failed TTB compliance check',\n    processed_at: new Date().toISOString(),\n  }\n};"
+      },
+      "id": "a1b2c3d4-0007-0007-0007-a1b2c3d40007",
+      "name": "Handle DENY",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "a1b2c3d4-0008-0008-0008-a1b2c3d40008",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook \u2014 Receive Submission": {
+      "main": [
+        [
+          {
+            "node": "POST \u2192 /assess",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST \u2192 /assess": {
+      "main": [
+        [
+          {
+            "node": "Decision?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision?": {
+      "main": [
+        [
+          {
+            "node": "Handle APPROVE",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Review or Deny?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review or Deny?": {
+      "main": [
+        [
+          {
+            "node": "Handle REVIEW",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle DENY",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle APPROVE": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle REVIEW": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle DENY": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "ttb-express-local"
+  },
+  "tags": [
+    {
+      "name": "TTB"
+    }
+  ],
+  "id": "ebe13933-34eb-445f-9515-3947d9f3fa06"
+}

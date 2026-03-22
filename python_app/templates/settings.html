@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - TTB Label Verification{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-background">
+    <!-- Header -->
+    <header class="bg-primary text-primary-foreground">
+        <div class="container mx-auto py-4 px-4">
+            <a href="/" class="flex items-center gap-3 hover:opacity-80">
+                <div class="p-2 bg-secondary">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m7 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h1 class="text-lg font-bold">TTB Label Verification</h1>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 container mx-auto py-8 px-4">
+        <div class="max-w-2xl mx-auto">
+            <div class="flex items-center gap-3 mb-8">
+                <svg class="h-6 w-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                </svg>
+                <h1 class="text-2xl font-bold text-primary">Settings</h1>
+            </div>
+
+            <!-- Account Section -->
+            <div class="border border-border rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-bold text-primary mb-4">Account</h2>
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-sm text-muted-foreground">Email</p>
+                        <p id="user-email" class="font-medium">Loading...</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-muted-foreground">Role</p>
+                        <p id="user-role" class="font-medium capitalize">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preferences Section -->
+            <div class="border border-border rounded-lg p-6 mb-6">
+                <h2 class="text-lg font-bold text-primary mb-4">Preferences</h2>
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium">Email Notifications</p>
+                            <p class="text-sm text-muted-foreground">Receive updates about your applications</p>
+                        </div>
+                        <input type="checkbox" id="email-notifications" class="w-5 h-5">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-medium">Auto-save History</p>
+                            <p class="text-sm text-muted-foreground">Automatically save verification results</p>
+                        </div>
+                        <input type="checkbox" id="auto-save-history" class="w-5 h-5">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign Out -->
+            <button onclick="handleSignOut()" class="w-full bg-destructive text-destructive-foreground font-bold py-3 rounded-lg hover:opacity-90">
+                Sign Out
+            </button>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/settings.js"></script>
+{% endblock %}

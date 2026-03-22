@@ -1,0 +1,598 @@
+{% extends "base.html" %}
+{% block title %}Sign In – TTB Automate{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-12">
+    <div class="w-full max-w-md">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-14 h-14 bg-primary mb-4">
+                <svg class="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-primary">TTB Automate</h1>
+            <p class="text-sm text-gray-500 mt-1">Alcohol and Tobacco Tax and Trade Bureau</p>
+        </div>
+
+        <!-- Card -->
+        <div class="bg-white border border-gray-200 shadow-sm">
+
+            <!-- Tab bar -->
+            <div class="flex border-b border-gray-200" id="tab-bar">
+                <button id="tab-signin" onclick="switchTab('signin')"
+                    class="flex-1 py-3 text-sm font-semibold border-b-2 border-secondary text-secondary">
+                    Sign In
+                </button>
+                <button id="tab-signup" onclick="switchTab('signup')"
+                    class="flex-1 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-primary">
+                    Create Account
+                </button>
+            </div>
+
+            <!-- ── Sign-In form ── -->
+            <div id="form-signin" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                    <input id="si-email" type="email" placeholder="you@example.com" autocomplete="email"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input id="si-pass" type="password" placeholder="••••••••" autocomplete="current-password"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <button onclick="handleSignIn()" id="si-btn"
+                    class="w-full bg-secondary text-white font-bold py-2.5 text-sm hover:bg-blue-800 transition-colors">
+                    Sign In
+                </button>
+                <button onclick="switchTab('forgot')"
+                    class="w-full text-secondary text-sm hover:underline text-center mt-1">
+                    Forgot password?
+                </button>
+            </div>
+
+            <!-- ── Sign-Up form ── -->
+            <div id="form-signup" class="p-6 space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                    <input id="su-email" type="email" placeholder="you@example.com" autocomplete="email"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input id="su-pass" type="password" placeholder="At least 8 characters" autocomplete="new-password"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+                    <input id="su-conf" type="password" placeholder="••••••••" autocomplete="new-password"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <button onclick="handleSignUp()" id="su-btn"
+                    class="w-full bg-secondary text-white font-bold py-2.5 text-sm hover:bg-blue-800 transition-colors">
+                    Create Account
+                </button>
+            </div>
+
+            <!-- ── Forgot Password form ── -->
+            <div id="form-forgot" class="p-6 space-y-4 hidden">
+                <p class="text-sm text-gray-600">Enter your email and we'll send you a password-reset link.</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                    <input id="fp-email" type="email" placeholder="you@example.com" autocomplete="email"
+                        class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+                </div>
+                <button onclick="handleForgotPassword()" id="fp-btn"
+                    class="w-full bg-secondary text-white font-bold py-2.5 text-sm hover:bg-blue-800 transition-colors">
+                    Send Reset Link
+                </button>
+                <button onclick="switchTab('signin')" class="w-full text-gray-500 text-sm hover:underline text-center">
+                    Back to sign in
+                </button>
+            </div>
+
+            <!-- Message area -->
+            <div id="auth-message" class="mx-6 mb-6 hidden"></div>
+        </div>
+
+        <!-- Demo accounts -->
+        <div class="bg-blue-50 border border-blue-200 mt-4 p-4">
+            <p class="text-xs font-bold text-blue-800 uppercase tracking-wide mb-3">Demo Accounts</p>
+            <div class="space-y-2">
+                <button onclick="demoLogin('admin47@treasury.gov','admin')"
+                    class="w-full text-left px-3 py-2 bg-white border border-blue-200 hover:bg-blue-100 text-sm flex items-center justify-between group transition-colors">
+                    <span>
+                        <span class="font-semibold text-blue-900">Admin</span>
+                        <span class="text-gray-500 ml-2">admin47@treasury.gov</span>
+                    </span>
+                    <span class="text-xs text-blue-600 font-medium group-hover:underline">Sign in →</span>
+                </button>
+                <button onclick="demoLogin('john@ttb.gov','staff')"
+                    class="w-full text-left px-3 py-2 bg-white border border-blue-200 hover:bg-blue-100 text-sm flex items-center justify-between group transition-colors">
+                    <span>
+                        <span class="font-semibold text-blue-900">Staff</span>
+                        <span class="text-gray-500 ml-2">john@ttb.gov</span>
+                    </span>
+                    <span class="text-xs text-blue-600 font-medium group-hover:underline">Sign in →</span>
+                </button>
+                <button onclick="demoLogin('user45@gmail.com','industry')"
+                    class="w-full text-left px-3 py-2 bg-white border border-blue-200 hover:bg-blue-100 text-sm flex items-center justify-between group transition-colors">
+                    <span>
+                        <span class="font-semibold text-blue-900">Industry</span>
+                        <span class="text-gray-500 ml-2">user45@gmail.com</span>
+                    </span>
+                    <span class="text-xs text-blue-600 font-medium group-hover:underline">Sign in →</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Test Your Label -->
+        <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #d4af37;padding:1.25rem 1.5rem;margin-top:1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;">
+            <div>
+                <p style="color:#d4af37;font-weight:800;font-size:0.9rem;margin:0 0 0.2rem;">🧪 Test Your Label</p>
+                <p style="color:rgba(255,255,255,0.65);font-size:0.75rem;margin:0;">See the AI model work — no login required</p>
+            </div>
+            <button onclick="openLabelTestModal()" style="background:#d4af37;color:#1a1a2e;font-weight:800;padding:0.5rem 1.1rem;font-size:0.8rem;border:none;cursor:pointer;font-family:inherit;white-space:nowrap;" onmouseover="this.style.background='#c9a227'" onmouseout="this.style.background='#d4af37'">Run AI Check →</button>
+        </div>
+
+        <p class="text-center text-xs text-gray-400 mt-6">
+            An official website of the U.S. Department of the Treasury
+        </p>
+    </div>
+</div>
+
+<!-- ── TEST YOUR LABEL MODAL ──────────────────────────────────────── -->
+<div id="label-test-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;overflow-y:auto;padding:2rem 1rem;">
+    <div style="background:#fff;max-width:900px;margin:0 auto;position:relative;">
+
+        <!-- Modal header -->
+        <div style="background:#1a1a2e;padding:1.25rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <p style="color:#d4af37;font-weight:800;font-size:1.1rem;margin:0;">🧪 Test Your Label — Live AI Demo</p>
+                <p style="color:rgba(255,255,255,0.6);font-size:0.8rem;margin:0.2rem 0 0;">No login required · Running against TTB 27 CFR compliance rules</p>
+            </div>
+            <button onclick="closeLabelTestModal()" style="background:rgba(255,255,255,0.1);border:none;color:#fff;font-size:1.25rem;width:2rem;height:2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;">✕</button>
+        </div>
+
+        <!-- Modal body -->
+        <div style="padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+
+            <!-- Left: label selector -->
+            <div>
+                <p style="font-weight:700;color:#112e51;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.75rem;">Choose a Sample Label</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+
+                    <!-- Sample 1 -->
+                    <div id="sample-card-bourbon" onclick="selectSample('bourbon')"
+                         style="border:2px solid #e5e7eb;cursor:pointer;padding:0.5rem;"
+                         onmouseover="this.style.borderColor='#d4af37'" onmouseout="if(currentSample!=='bourbon')this.style.borderColor='#e5e7eb'">
+                        <img src="/static/samples/sample-bourbon.jpg" alt="Bourbon label" style="width:100%;height:140px;object-fit:cover;display:block;">
+                        <p style="font-size:0.75rem;font-weight:600;color:#1a1a2e;margin:0.4rem 0 0.1rem;">Kentucky Bourbon</p>
+                        <p style="font-size:0.7rem;color:#6b7280;margin:0;">Spirits · Compliant</p>
+                    </div>
+
+                    <!-- Sample 2 -->
+                    <div id="sample-card-wine" onclick="selectSample('wine')"
+                         style="border:2px solid #e5e7eb;cursor:pointer;padding:0.5rem;"
+                         onmouseover="this.style.borderColor='#722f37'" onmouseout="if(currentSample!=='wine')this.style.borderColor='#e5e7eb'">
+                        <img src="/static/samples/sample-wine.jpg" alt="Wine label" style="width:100%;height:140px;object-fit:cover;display:block;">
+                        <p style="font-size:0.75rem;font-weight:600;color:#1a1a2e;margin:0.4rem 0 0.1rem;">Chilean Red Wine</p>
+                        <p style="font-size:0.7rem;color:#722f37;margin:0;">Wine · Issues present</p>
+                    </div>
+                </div>
+
+                <!-- Divider -->
+                <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                    <span style="font-size:0.75rem;color:#9ca3af;">or upload your own</span>
+                    <div style="flex:1;height:1px;background:#e5e7eb;"></div>
+                </div>
+
+                <!-- Upload zone -->
+                <div id="ltm-drop" onclick="document.getElementById('ltm-file-input').click()"
+                     style="border:2px dashed #d1d5db;padding:1.25rem;text-align:center;cursor:pointer;"
+                     ondragover="event.preventDefault();this.style.borderColor='#005ea2';this.style.background='#eff6ff'"
+                     ondragleave="this.style.borderColor='#d1d5db';this.style.background=''"
+                     ondrop="ltmHandleDrop(event)"
+                     onmouseover="this.style.borderColor='#005ea2'" onmouseout="this.style.borderColor='#d1d5db'">
+                    <p style="font-size:0.8rem;color:#6b7280;margin:0;">📁 Drop image or click to select</p>
+                    <p style="font-size:0.7rem;color:#9ca3af;margin:0.25rem 0 0;">JPG, PNG, WEBP</p>
+                    <input type="file" id="ltm-file-input" accept="image/*" style="display:none" onchange="ltmLoadFile(this.files[0])">
+                </div>
+
+                <!-- Selected image preview -->
+                <div id="ltm-preview" style="display:none;margin-top:0.75rem;">
+                    <img id="ltm-preview-img" src="" style="width:100%;max-height:200px;object-fit:contain;border:1px solid #e5e7eb;background:#f9fafb;">
+                    <p id="ltm-preview-name" style="font-size:0.7rem;color:#6b7280;margin:0.3rem 0 0;"></p>
+                </div>
+
+                <!-- Run button -->
+                <button id="ltm-run-btn" onclick="ltmRunCheck()" disabled
+                    style="width:100%;margin-top:1rem;background:#1a1a2e;color:#d4af37;font-weight:800;padding:0.75rem;font-size:0.9rem;border:none;cursor:pointer;font-family:inherit;letter-spacing:0.02em;opacity:0.4;">
+                    ▶ Run AI Compliance Check
+                </button>
+            </div>
+
+            <!-- Right: results panel -->
+            <div>
+                <p style="font-weight:700;color:#112e51;font-size:0.875rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.75rem;">AI Analysis Results</p>
+                <div id="ltm-results" style="min-height:380px;border:1px solid #e5e7eb;background:#f9fafb;padding:1.25rem;display:flex;align-items:center;justify-content:center;">
+                    <div style="text-align:center;color:#9ca3af;">
+                        <p style="font-size:2rem;margin:0;">🏷️</p>
+                        <p style="font-size:0.8rem;margin:0.5rem 0 0;">Select a label and run the check<br>to see AI feedback here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── TEST YOUR LABEL MODAL ─────────────────────────────────────────── */
+let currentSample = null;
+let ltmImageB64   = null;
+
+const SAMPLE_URLS = {
+    bourbon: '/static/samples/sample-bourbon.jpg',
+    wine:    '/static/samples/sample-wine.jpg',
+};
+
+function openLabelTestModal() {
+    document.getElementById('label-test-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+function closeLabelTestModal() {
+    document.getElementById('label-test-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+document.getElementById('label-test-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLabelTestModal();
+});
+
+function selectSample(key) {
+    currentSample = key;
+    ['bourbon','wine'].forEach(k => {
+        document.getElementById('sample-card-' + k).style.borderColor =
+            k === key ? (k === 'bourbon' ? '#d4af37' : '#722f37') : '#e5e7eb';
+    });
+    fetch(SAMPLE_URLS[key])
+        .then(r => r.blob())
+        .then(blob => {
+            const reader = new FileReader();
+            reader.onload = e => {
+                ltmImageB64 = e.target.result;
+                document.getElementById('ltm-preview-img').src = ltmImageB64;
+                document.getElementById('ltm-preview-name').textContent = key + '-label.jpg';
+                document.getElementById('ltm-preview').style.display = 'block';
+                document.getElementById('ltm-drop').style.display = 'none';
+                ltmEnableBtn();
+                ltmRunCheck();
+            };
+            reader.readAsDataURL(blob);
+        });
+}
+
+function ltmHandleDrop(e) {
+    e.preventDefault();
+    document.getElementById('ltm-drop').style.borderColor = '#d1d5db';
+    document.getElementById('ltm-drop').style.background = '';
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    if (files.length) ltmLoadFile(files[0]);
+}
+
+function ltmLoadFile(file) {
+    if (!file) return;
+    currentSample = null;
+    ['bourbon','wine'].forEach(k => { document.getElementById('sample-card-' + k).style.borderColor = '#e5e7eb'; });
+    const reader = new FileReader();
+    reader.onload = e => {
+        ltmImageB64 = e.target.result;
+        document.getElementById('ltm-preview-img').src = ltmImageB64;
+        document.getElementById('ltm-preview-name').textContent = file.name + ' (' + Math.round(file.size/1024) + ' KB)';
+        document.getElementById('ltm-preview').style.display = 'block';
+        document.getElementById('ltm-drop').style.display = 'none';
+        ltmEnableBtn();
+    };
+    reader.readAsDataURL(file);
+}
+
+function ltmEnableBtn() {
+    const btn = document.getElementById('ltm-run-btn');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+}
+
+async function ltmRunCheck() {
+    if (!ltmImageB64) return;
+    const btn = document.getElementById('ltm-run-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analyzing label…';
+    btn.style.opacity = '0.7';
+
+    document.getElementById('ltm-results').innerHTML = `
+        <div style="text-align:center;color:#6b7280;">
+            <div style="width:36px;height:36px;border:3px solid #d4af37;border-top-color:transparent;border-radius:50%;animation:ltm-spin 0.8s linear infinite;margin:0 auto 0.75rem;"></div>
+            <p style="font-size:0.8rem;margin:0;">Running AI compliance check…</p>
+            <p style="font-size:0.7rem;color:#9ca3af;margin:0.3rem 0 0;">This may take 10–30 seconds</p>
+        </div>`;
+
+    try {
+        const res = await fetch('/api/verify-label', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer demo-industry', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_base64: ltmImageB64 }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'Server error ' + res.status }));
+            throw new Error(err.detail || 'Request failed');
+        }
+        const data = await res.json();
+        ltmRenderResults(data);
+    } catch(err) {
+        document.getElementById('ltm-results').innerHTML = `
+            <div style="padding:1rem;">
+                <p style="color:#dc2626;font-weight:700;margin:0 0 0.5rem;">⚠ Check failed</p>
+                <p style="font-size:0.8rem;color:#555;margin:0;">${err.message}</p>
+                <p style="font-size:0.75rem;color:#9ca3af;margin:0.5rem 0 0;">Make sure the app server is running.</p>
+            </div>`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '▶ Run AI Compliance Check';
+        btn.style.opacity = '1';
+    }
+}
+
+function ltmRenderResults(data) {
+    const pass = data.overall_status === 'PASS';
+    const score = data.compliance_score ?? 0;
+    const scoreColor = score >= 80 ? '#16a34a' : score >= 60 ? '#d97706' : '#dc2626';
+
+    const checksHtml = (data.checks || []).map(c => {
+        const icon   = c.status === 'PASS' ? '✅' : c.status === 'WARN' ? '⚠️' : '❌';
+        const bg     = c.status === 'PASS' ? '#f0fdf4' : c.status === 'WARN' ? '#fffbeb' : '#fef2f2';
+        const border = c.status === 'PASS' ? '#bbf7d0' : c.status === 'WARN' ? '#fde68a' : '#fecaca';
+        return `<div style="background:${bg};border:1px solid ${border};padding:0.5rem 0.6rem;margin-bottom:0.4rem;font-size:0.75rem;">
+            <div style="display:flex;align-items:flex-start;gap:0.4rem;">
+                <span style="flex-shrink:0;">${icon}</span>
+                <div>
+                    <span style="font-weight:700;color:#111;">${c.field}</span>
+                    ${c.label_value ? `<span style="color:#555;"> — ${c.label_value}</span>` : ''}
+                    ${c.reason ? `<div style="color:#6b7280;margin-top:0.15rem;">${c.reason}</div>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    const failsHtml = (data.critical_failures || []).length ? `
+        <div style="background:#fef2f2;border:1px solid #fecaca;padding:0.6rem 0.75rem;margin-bottom:0.75rem;">
+            <p style="font-weight:700;color:#dc2626;font-size:0.75rem;margin:0 0 0.3rem;">Critical Failures</p>
+            ${data.critical_failures.map(f => `<p style="font-size:0.72rem;color:#7f1d1d;margin:0.15rem 0;">• ${f}</p>`).join('')}
+        </div>` : '';
+
+    document.getElementById('ltm-results').innerHTML = `
+        <div style="overflow-y:auto;max-height:420px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;padding-bottom:0.75rem;border-bottom:1px solid #e5e7eb;">
+                <div>
+                    <p style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin:0;">Commodity</p>
+                    <p style="font-weight:700;color:#1a1a2e;font-size:0.9rem;margin:0;">${data.commodity_type || '—'}</p>
+                </div>
+                <div style="text-align:center;">
+                    <p style="font-size:2rem;font-weight:900;color:${scoreColor};margin:0;line-height:1;">${score}</p>
+                    <p style="font-size:0.65rem;color:#6b7280;margin:0;">/ 100</p>
+                </div>
+                <div style="text-align:right;">
+                    <span style="background:${pass ? '#16a34a' : '#dc2626'};color:#fff;font-weight:800;font-size:0.75rem;padding:0.3rem 0.75rem;">
+                        ${pass ? '✓ PASS' : '✗ FAIL'}
+                    </span>
+                    ${data.engine ? `<p style="font-size:0.65rem;color:#9ca3af;margin:0.3rem 0 0;">via ${data.engine}</p>` : ''}
+                </div>
+            </div>
+            ${failsHtml}
+            <div style="font-size:0.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:0.4rem;">Field Checks</div>
+            ${checksHtml}
+        </div>`;
+}
+
+const ltmStyle = document.createElement('style');
+ltmStyle.textContent = '@keyframes ltm-spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(ltmStyle);
+</script>
+
+<script>
+function demoLogin(email, role) {
+    // Set server-readable cookie first — server will handle the redirect on next request
+    document.cookie = 'demo_role=' + role + '; path=/; max-age=86400; SameSite=Lax';
+    // Also store full session in sessionStorage for API bearer tokens
+    const session = {
+        demo: true,
+        user: { id: 'demo-' + role + '-001', email: email, role: role },
+        token: 'demo-' + role,
+    };
+    try { sessionStorage.setItem('demo_session', JSON.stringify(session)); } catch(e) {}
+
+    const next = new URLSearchParams(window.location.search).get('next');
+    if (next && next.startsWith('/') && !next.startsWith('//')) {
+        window.location.href = next; return;
+    }
+    window.location.href = (role === 'industry') ? '/industry/dashboard' : '/staff/dashboard';
+}
+</script>
+
+<script>
+/* ── Tab switching ──────────────────────────────────────────────── */
+function switchTab(tab) {
+    ['signin','signup','forgot'].forEach(t => {
+        document.getElementById('form-' + t).classList.add('hidden');
+    });
+    document.getElementById('form-' + tab).classList.remove('hidden');
+
+    // Update tab bar active state (only for main tabs)
+    ['signin','signup'].forEach(t => {
+        const btn = document.getElementById('tab-' + t);
+        if (!btn) return;
+        if (t === tab) {
+            btn.classList.replace('border-transparent','border-secondary');
+            btn.classList.replace('text-gray-500','text-secondary');
+        } else {
+            btn.classList.replace('border-secondary','border-transparent');
+            btn.classList.replace('text-secondary','text-gray-500');
+        }
+    });
+
+    // Clear message
+    const msg = document.getElementById('auth-message');
+    msg.classList.add('hidden');
+    msg.textContent = '';
+}
+
+function setLoading(btnId, loading, defaultText) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Please wait…' : defaultText;
+}
+
+/* ── Demo email interception ────────────────────────────────────── */
+const _DEMO_ACCOUNTS = {
+    'admin47@treasury.gov': 'admin',
+    'john@ttb.gov':         'staff',
+    'user45@gmail.com':     'industry',
+};
+
+/* ── Sign In ────────────────────────────────────────────────────── */
+async function handleSignIn() {
+    const email = document.getElementById('si-email').value.trim().toLowerCase();
+    const pass  = document.getElementById('si-pass').value;
+    if (!email || !pass) { showAuthMsg('Please enter your email and password.', true); return; }
+
+    // Intercept known demo accounts — bypass Supabase entirely
+    if (_DEMO_ACCOUNTS[email]) {
+        demoLogin(email, _DEMO_ACCOUNTS[email]);
+        return;
+    }
+
+    setLoading('si-btn', true, 'Sign In');
+    try {
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password: pass });
+        if (error) throw error;
+
+        // Role-based redirect
+        const { data: rd } = await window.supabaseClient
+            .from('user_roles').select('role').eq('user_id', data.user.id).maybeSingle();
+        const role = rd?.role || 'industry';
+
+        const next = new URLSearchParams(window.location.search).get('next');
+        if (next) { window.location.href = next; return; }
+        window.location.href = (role === 'industry') ? '/industry/dashboard' : '/staff/dashboard';
+    } catch (err) {
+        showAuthMsg(err.message || 'Sign-in failed. Please check your credentials.', true);
+        setLoading('si-btn', false, 'Sign In');
+    }
+}
+
+/* ── Sign Up ────────────────────────────────────────────────────── */
+async function handleSignUp() {
+    const email = document.getElementById('su-email').value.trim();
+    const pass  = document.getElementById('su-pass').value;
+    const conf  = document.getElementById('su-conf').value;
+
+    if (!email || !pass || !conf) { showAuthMsg('Please fill in all fields.', true); return; }
+    if (pass !== conf)            { showAuthMsg('Passwords do not match.',   true); return; }
+    if (pass.length < 8)          { showAuthMsg('Password must be at least 8 characters.', true); return; }
+
+    setLoading('su-btn', true, 'Create Account');
+    try {
+        const { error } = await window.supabaseClient.auth.signUp({ email, password: pass });
+        if (error) throw error;
+        showAuthMsg('Account created! Check your email to confirm your address before signing in.');
+        document.getElementById('su-email').value = '';
+        document.getElementById('su-pass').value  = '';
+        document.getElementById('su-conf').value  = '';
+    } catch (err) {
+        showAuthMsg(err.message || 'Sign-up failed.', true);
+    } finally {
+        setLoading('su-btn', false, 'Create Account');
+    }
+}
+
+/* ── Forgot Password ────────────────────────────────────────────── */
+async function handleForgotPassword() {
+    const email = document.getElementById('fp-email').value.trim();
+    if (!email) { showAuthMsg('Please enter your email address.', true); return; }
+
+    setLoading('fp-btn', true, 'Send Reset Link');
+    try {
+        const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + '/auth?mode=reset',
+        });
+        if (error) throw error;
+        showAuthMsg('Password reset link sent — check your email.');
+        document.getElementById('fp-email').value = '';
+    } catch (err) {
+        showAuthMsg(err.message || 'Failed to send reset email.', true);
+    } finally {
+        setLoading('fp-btn', false, 'Send Reset Link');
+    }
+}
+
+function showAuthMsg(msg, isError = false) {
+    const el = document.getElementById('auth-message');
+    el.textContent = msg;
+    el.className = 'mx-0 mb-0 p-3 text-sm font-medium rounded ' +
+        (isError ? 'bg-red-50 text-red-800 border border-red-200'
+                 : 'bg-green-50 text-green-800 border border-green-200');
+    el.classList.remove('hidden');
+}
+
+/* ── Auto-redirect handled server-side (demo_role cookie) ──────── */
+/* For real Supabase sessions, redirect after successful sign-in.   */
+document.addEventListener('DOMContentLoaded', async () => {
+    /* Handle password-reset mode (Supabase redirects back here with tokens) */
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    if (hash.get('type') === 'recovery') {
+        showResetForm(hash.get('access_token'));
+    }
+});
+
+function showResetForm(token) {
+    ['signin','signup','forgot'].forEach(t =>
+        document.getElementById('form-' + t).classList.add('hidden'));
+
+    const card = document.querySelector('.bg-white');
+    const div  = document.createElement('div');
+    div.id = 'form-reset';
+    div.className = 'p-6 space-y-4';
+    div.innerHTML = `
+        <p class="text-sm text-gray-600 font-medium">Enter your new password below.</p>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">New password</label>
+            <input id="rp-pass" type="password" placeholder="At least 8 characters"
+                class="w-full px-3 py-2 border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-secondary">
+        </div>
+        <button onclick="handleResetPassword('${token}')" id="rp-btn"
+            class="w-full bg-secondary text-white font-bold py-2.5 text-sm hover:bg-blue-800 transition-colors">
+            Set New Password
+        </button>`;
+    card.appendChild(div);
+}
+
+async function handleResetPassword(token) {
+    const pass = document.getElementById('rp-pass').value;
+    if (!pass || pass.length < 8) { showAuthMsg('Password must be at least 8 characters.', true); return; }
+    setLoading('rp-btn', true, 'Set New Password');
+    try {
+        // Set session from recovery token then update
+        await window.supabaseClient.auth.setSession({ access_token: token, refresh_token: token });
+        const { error } = await window.supabaseClient.auth.updateUser({ password: pass });
+        if (error) throw error;
+        showAuthMsg('Password updated! Redirecting to sign in…');
+        setTimeout(() => { window.location.href = '/auth'; }, 2000);
+    } catch (err) {
+        showAuthMsg(err.message || 'Failed to reset password.', true);
+        setLoading('rp-btn', false, 'Set New Password');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Regulations - TTB Label Verification{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex flex-col bg-background">
+    <!-- Header -->
+    <header class="bg-primary text-primary-foreground">
+        <div class="container mx-auto py-4 px-4">
+            <a href="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <div class="p-2 bg-secondary">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m7 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h1 class="text-lg font-bold">TTB Label Verification</h1>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 container mx-auto py-8 px-4">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex items-center gap-3 mb-6">
+                <svg class="h-6 w-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C6.5 6.253 2 10.998 2 17s4.5 10.747 10 10.747c5.5 0 10-4.998 10-10.747 0-5.502-4.5-10.747-10-10.747z"/>
+                </svg>
+                <div>
+                    <h1 class="text-2xl font-bold text-primary">Regulatory Reference</h1>
+                    <p class="text-muted-foreground">Key requirements from 27 CFR Parts 4, 5, and 7</p>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="relative mb-8">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input id="search-input" type="text" placeholder="Search regulations..." class="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary">
+            </div>
+
+            <!-- Regulations Container -->
+            <div id="regulations-container" class="space-y-6">
+                <!-- Wine (Part 4) -->
+                <div class="border border-border rounded-lg overflow-hidden">
+                    <div class="bg-secondary text-secondary-foreground p-4">
+                        <h2 class="font-bold">Part 4: Wine</h2>
+                        <p class="text-sm text-secondary-foreground/80">Labeling and Advertising of Wine (27 CFR Part 4)</p>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">4.30 - General Requirements</h3>
+                            <ul class="space-y-1 text-sm text-foreground list-disc list-inside">
+                                <li>Brand name must be prominently displayed</li>
+                                <li>Class and type of wine required</li>
+                                <li>Alcohol content required for wines over 14% ABV</li>
+                                <li>Net contents in metric measure</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">4.39 - Sulfite Declaration</h3>
+                            <p class="text-sm text-foreground">'Contains Sulfites' required if sulfur dioxide exceeds 10 ppm</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distilled Spirits (Part 5) -->
+                <div class="border border-border rounded-lg overflow-hidden">
+                    <div class="bg-secondary text-secondary-foreground p-4">
+                        <h2 class="font-bold">Part 5: Distilled Spirits</h2>
+                        <p class="text-sm text-secondary-foreground/80">Labeling and Advertising of Distilled Spirits (27 CFR Part 5)</p>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">5.32 - Mandatory Label Information</h3>
+                            <ul class="space-y-1 text-sm text-foreground list-disc list-inside">
+                                <li>Brand name prominently on brand label</li>
+                                <li>Class and type designation (e.g., Vodka, Bourbon)</li>
+                                <li>Alcohol content as % alc. by vol.</li>
+                                <li>Net contents in metric measure</li>
+                                <li>Name and address of distiller/bottler/importer</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">5.35 - Alcohol Content Standards</h3>
+                            <p class="text-sm text-foreground">Tolerance: ±0.3% for products 100 proof or less</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Malt Beverages (Part 7) -->
+                <div class="border border-border rounded-lg overflow-hidden">
+                    <div class="bg-secondary text-secondary-foreground p-4">
+                        <h2 class="font-bold">Part 7: Malt Beverages</h2>
+                        <p class="text-sm text-secondary-foreground/80">Labeling and Advertising of Malt Beverages (27 CFR Part 7)</p>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">7.22 - Mandatory Label Information</h3>
+                            <ul class="space-y-1 text-sm text-foreground list-disc list-inside">
+                                <li>Brand name on principal display panel</li>
+                                <li>Class designation (Ale, Lager, Stout, etc.)</li>
+                                <li>Name and address of brewer or importer</li>
+                                <li>Net contents</li>
+                                <li>Country of origin if imported</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-primary mb-2">7.25 - Alcohol Content</h3>
+                            <p class="text-sm text-foreground">Optional by federal law (state laws may require). Tolerance: ±0.15% if stated</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Government Warning -->
+                <div class="border-2 border-destructive/50 bg-red-50 rounded-lg overflow-hidden">
+                    <div class="bg-destructive text-white p-4">
+                        <h2 class="font-bold">Government Warning (27 CFR 16.21 - ABLA)</h2>
+                        <p class="text-sm text-white/90">Required health warning on all alcoholic beverages</p>
+                    </div>
+                    <div class="p-4">
+                        <p class="font-mono text-sm bg-muted p-3 rounded mb-4">
+                            GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.
+                        </p>
+                        <ul class="space-y-1 text-sm text-foreground list-disc list-inside">
+                            <li>Must appear on label affixed to container</li>
+                            <li>Must be separate from other information</li>
+                            <li>Must be readily legible</li>
+                            <li>Exact wording as specified</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 p-4 bg-muted text-sm text-muted-foreground text-center rounded-lg">
+                <p>This is a summary for reference only. Consult the full Code of Federal Regulations for complete requirements.</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="/static/js/regulations.js"></script>
+{% endblock %}
