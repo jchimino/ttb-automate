@@ -10,8 +10,8 @@ cd ttb-automate
 # 2. Start everything — CPU mode (works on any machine, no GPU required)
 docker compose up --build
 
-# 2a. Optional: GPU-accelerated mode (requires NVIDIA Container Toolkit)
-#     docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+# GPU acceleration is automatic if the NVIDIA Container Toolkit is installed.
+#     docker-compose.yml includes the deploy block — no second file needed.
 
 # 3. Once running, open your browser and navigate to:
 #    http://localhost:8004        ← main web UI
