@@ -8,7 +8,7 @@
 #   ollama-pull   One-shot: pulls model, then exits
 #   ocr           Tesseract OCR service    → internal (http://ocr:8001)
 #   postgres      Audit log database       → internal (postgres:5432)
-#   n8n           Workflow automation      → http://localhost:5678
+#   n8n           Workflow automation      → http://localhost:15678
 #
 # Quick start
 # ─────────────────────────────────────────────
@@ -177,13 +177,13 @@ services:
     image: n8nio/n8n:latest
     container_name: ttb-n8n
     ports:
-      - "5678:5678"
+      - "15678:5678"
     environment:
       N8N_BASIC_AUTH_ACTIVE: "true"
       N8N_BASIC_AUTH_USER: "${N8N_USER:-admin}"
       N8N_BASIC_AUTH_PASSWORD: "${N8N_PASSWORD:-ttbexpress}"
       N8N_RUNNERS_ENABLED: "true"
-      WEBHOOK_URL: "http://localhost:5678/"
+      WEBHOOK_URL: "http://localhost:15678/"
       GENERIC_TIMEZONE: "America/New_York"
       TZ: "America/New_York"
       N8N_DIAGNOSTICS_ENABLED: "false"
