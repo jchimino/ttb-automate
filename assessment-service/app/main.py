@@ -31,6 +31,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import asyncio
 import httpx
 import psycopg2
 from PIL import Image
@@ -55,6 +56,7 @@ _VISION_MODEL_NAMES = ("llava", "bakllava", "moondream", "vision", "llama3.2-vis
 # Set at startup
 STRATEGY     = "unknown"
 ACTIVE_MODEL = OLLAMA_MODEL
+MODEL_READY  = False   # set to True once a warm-up probe succeeds
 
 
 def _is_vision_model(name: str) -> bool:
@@ -95,6 +97,34 @@ async def detect_strategy():
             ACTIVE_MODEL = TEXT_MODEL
 
     print(f"[startup] Ollama: {OLLAMA_HOST} | Strategy: {STRATEGY.upper()} | Model: {ACTIVE_MODEL}")
+
+    # Warm-up probe — block until Ollama can respond to a real generate call.
+    # Without this the /health endpoint would return 200 while models are still
+    # loading, causing the assess service to accept requests it cannot fulfil.
+    global MODEL_READY
+    probe_model = ACTIVE_MODEL
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                r = await client.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={
+                        "model":  probe_model,
+                        "prompt": "hi",
+                        "stream": False,
+                        "options": {"num_predict": 1},
+                    },
+                )
+            if r.is_success:
+                MODEL_READY = True
+                print(f"[startup] Model {probe_model} is ready (attempt {attempt}).")
+                break
+            print(f"[startup] Warm-up attempt {attempt}: Ollama returned {r.status_code} — retrying in 10 s …")
+        except Exception as exc:
+            print(f"[startup] Warm-up attempt {attempt}: {exc} — retrying in 10 s …")
+        await asyncio.sleep(10)
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -280,6 +310,17 @@ async def assess(
 
 @app.get("/health")
 async def health():
+    if not MODEL_READY:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status":       "loading",
+                "strategy":     STRATEGY,
+                "active_model": ACTIVE_MODEL,
+                "ollama":       OLLAMA_HOST,
+            },
+        )
     return {
         "status":       "ok",
         "strategy":     STRATEGY,
