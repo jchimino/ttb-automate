@@ -75,6 +75,23 @@ async function verifySingle() {
     const btn = document.getElementById('btn-single');
     btn.disabled = true;
     btn.textContent = 'Verifying with AI…';
+
+    // ── Pre-flight: check if the assessment service is ready ──────────────
+    // This runs instantly and shows the warm-up UI immediately if models
+    // are still loading — no hanging for minutes waiting for a timeout.
+    try {
+        const readyRes = await fetch('/api/assess-ready', {
+            signal: AbortSignal.timeout(3000),
+        });
+        if (readyRes.status === 503) {
+            showWarmingUI();
+            return;
+        }
+    } catch (_) {
+        // If the health endpoint itself is unreachable (network error / timeout),
+        // fall through and let the main request surface the real error.
+    }
+
     showToast('Running compliance check', 'Executing compliance analysis…', 'info', 0);
 
     try {
@@ -95,41 +112,25 @@ async function verifySingle() {
 
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            const errMsg = errData.detail || 'Verification failed (' + res.status + ')';
+            const errMsg  = errData.detail || 'Verification failed (' + res.status + ')';
 
             if (res.status === 502) {
                 // Assessment service still warming up — show retry UI
-                let countdown = 15;
-                const resultEl = document.getElementById('results-single');
-                const renderWaiting = (s) => {
-                    resultEl.innerHTML = `
-                        <div class="border border-yellow-200 rounded-lg p-6 bg-yellow-50 text-center">
-                            <div class="text-3xl mb-3">⏳</div>
-                            <p class="font-semibold text-yellow-800 text-lg mb-1">AI models are warming up…</p>
-                            <p class="text-yellow-700 text-sm mb-3">The assessment service is still loading (~11 GB of models on first boot).<br>Retrying automatically in <strong>${s}s</strong>…</p>
-                            <p class="text-xs text-yellow-600">See the <a href="https://github.com/jchimino/ttb-automate#setup" target="_blank" class="underline font-medium">README → Setup section</a> for first-boot details.</p>
-                        </div>`;
-                };
-                renderWaiting(countdown);
-                const timer = setInterval(() => {
-                    countdown--;
-                    if (countdown <= 0) {
-                        clearInterval(timer);
-                        verifySingle();
-                    } else {
-                        renderWaiting(countdown);
-                    }
-                }, 1000);
-            } else {
-                setResult(null, errMsg || 'Verification failed (' + res.status + ')');
+                showWarmingUI();
+                return;
             }
+
+            document.getElementById('results-single').innerHTML = `
+                <div class="border border-red-200 rounded-lg p-4 bg-red-50 text-sm text-red-800">
+                    <strong>⚠ Check failed</strong>
+                    <p class="mt-1">${escHtml(errMsg)}</p>
+                    <p class="mt-2 text-xs text-red-600">See the <a href="https://github.com/jchimino/ttb-automate#setup" target="_blank" class="underline font-medium">README → Setup section</a> if the issue persists.</p>
+                </div>`;
             return;
         }
-        const data = await res.json();
-        renderSingleResult(data);
-        showToast('Done', 'Compliance check complete.', data.overall_status === 'PASS' ? 'success' : 'warning');
 
-        // Save to history (fire-and-forget — don't block UI on failure)
+        const data = await res.json();
+        renderSingleResult(data); // (keep warm-up UI on failure)
         saveVerificationToHistory(data, singleB64, document.getElementById('details-single').value);
     } catch (err) {
         document.querySelectorAll('.toast-info').forEach(t => dismissToast(t));
@@ -144,117 +145,36 @@ async function verifySingle() {
     }
 }
 
-function renderSingleResult(r) {
-    const pass = r.overall_status === 'PASS';
-    const color = pass ? { bg:'bg-green-50', border:'border-green-400', text:'text-green-900', badge:'bg-green-100 text-green-800' }
-                       : { bg:'bg-red-50',   border:'border-red-400',   text:'text-red-900',   badge:'bg-red-100 text-red-800'   };
-    let html = `
-    <div class="space-y-4">
-        <div class="rounded border-l-4 ${color.border} ${color.bg} p-4">
-            <div class="flex items-center justify-between">
-                <div class="font-bold text-lg ${color.text}">
-                    ${pass ? '✓ Compliant' : '✗ Issues Found'}
-                </div>
-                <div class="text-2xl font-bold ${color.text}">${r.compliance_score}<span class="text-sm font-normal">/100</span></div>
-            </div>
-            <div class="text-sm ${color.text} mt-1">
-                Commodity: <strong>${escHtml(r.commodity_type)}</strong>
-            </div>
-        </div>`;
+/* ── Warm-up UI helper ────────────────────────────────────────────────────── */
+function showWarmingUI() {
+    // Re-enable the button so the auto-retry can re-invoke verifySingle()
+    const btn = document.getElementById('btn-single');
+    btn.disabled = false;
+    btn.textContent = 'Verify Compliance';
+    document.querySelectorAll('.toast-info').forEach(t => dismissToast(t));
 
-    if (r.critical_failures?.length) {
-        html += `<div class="rounded border-l-4 border-red-500 bg-red-50 p-3 text-sm">
-            <p class="font-bold text-red-900 mb-1">Critical Failures</p>
-            <ul class="list-disc list-inside text-red-800 space-y-0.5">
-                ${r.critical_failures.map(f => `<li>${escHtml(f)}</li>`).join('')}
-            </ul></div>`;
-    }
-    if (r.warnings?.length) {
-        html += `<div class="rounded border-l-4 border-yellow-400 bg-yellow-50 p-3 text-sm">
-            <p class="font-bold text-yellow-900 mb-1">Warnings</p>
-            <ul class="list-disc list-inside text-yellow-800 space-y-0.5">
-                ${r.warnings.map(w => `<li>${escHtml(w)}</li>`).join('')}
-            </ul></div>`;
-    }
-
-    html += `<div class="space-y-2">
-        <p class="text-sm font-semibold text-gray-700">Compliance Checks (${r.checks.length})</p>`;
-    r.checks.forEach(c => {
-        const ok = c.status === 'PASS';
-        html += `<div class="rounded border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} p-3 text-sm">
-            <div class="flex gap-2">
-                <span class="font-bold text-base ${ok ? 'text-green-700' : 'text-red-700'}">${ok ? '✓' : '✗'}</span>
-                <div class="flex-1">
-                    <p class="font-semibold ${ok ? 'text-green-900' : 'text-red-900'}">${escHtml(c.field)}</p>
-                    ${c.reason     ? `<p class="text-gray-600 mt-0.5">${escHtml(c.reason)}</p>` : ''}
-                    ${c.label_value ? `<p class="mt-0.5"><span class="font-medium">Found:</span> ${escHtml(c.label_value)}</p>` : ''}
-                    ${c.text_value  ? `<p class="mt-0.5"><span class="font-medium">Expected:</span> ${escHtml(c.text_value)}</p>` : ''}
-                </div>
-            </div></div>`;
-    });
-    html += '</div></div>';
-    document.getElementById('results-single').innerHTML = html;
-}
-
-/* ─── Batch labels ──────────────────────────────────────────────── */
-function loadBatchFiles(fileList) {
-    const newFiles = [...fileList].filter(f => f.type.startsWith('image/'));
-    if (!newFiles.length) { showToast('No images', 'Please select image files.', 'warning'); return; }
-
-    const remaining = 20 - batchFiles.length;
-    if (remaining <= 0) { showToast('Limit reached', 'Maximum 20 images per batch.', 'warning'); return; }
-    const toAdd = newFiles.slice(0, remaining);
-    if (newFiles.length > remaining) showToast('Truncated', `Only the first ${remaining} images were added (20 max).`, 'warning');
-
-    toAdd.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = e => {
-            batchFiles.push({ file, b64: e.target.result, name: file.name, status: 'pending', result: null });
-            renderBatchQueue();
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-function renderBatchQueue() {
-    if (!batchFiles.length) {
-        document.getElementById('batch-queue').classList.add('hidden');
-        return;
-    }
-    document.getElementById('batch-queue').classList.remove('hidden');
-    document.getElementById('batch-count-label').textContent = batchFiles.length + ' image' + (batchFiles.length !== 1 ? 's' : '') + ' queued';
-
-    const grid = document.getElementById('batch-grid');
-    grid.innerHTML = '';
-    batchFiles.forEach((item, i) => {
-        const statusColor = { pending:'bg-gray-100', running:'bg-blue-100', done_pass:'bg-green-100', done_fail:'bg-red-100', error:'bg-yellow-100' }[item.status] || 'bg-gray-100';
-        const statusIcon  = { pending:'•', running:'⟳', done_pass:'✓', done_fail:'✗', error:'!' }[item.status] || '•';
-        const d = document.createElement('div');
-        d.className = 'relative border border-gray-200 rounded overflow-hidden ' + statusColor;
-        d.innerHTML = `
-            <img src="${item.b64}" alt="${escHtml(item.name)}" class="w-full h-28 object-contain bg-gray-50">
-            <button onclick="removeBatchItem(${i})" class="absolute top-1 right-1 bg-white rounded-full w-5 h-5 text-xs text-gray-500 hover:text-red-600 flex items-center justify-center border border-gray-200" title="Remove">✕</button>
-            <div class="p-1.5">
-                <p class="text-xs text-gray-600 truncate" title="${escHtml(item.name)}">${escHtml(item.name)}</p>
-                <p class="text-xs font-bold mt-0.5">${statusIcon} ${item.status === 'running' ? 'Checking…' : item.status === 'done_pass' ? 'PASS' : item.status === 'done_fail' ? 'FAIL' : item.status === 'error' ? 'Error' : 'Pending'}</p>
+    let countdown = 15;
+    const resultEl = document.getElementById('results-single');
+    const renderWaiting = (s) => {
+        resultEl.innerHTML = `
+            <div class="border border-yellow-200 rounded-lg p-6 bg-yellow-50 text-center">
+                <div class="text-3xl mb-3">⏳</div>
+                <p class="font-semibold text-yellow-800 text-lg mb-1">AI models are warming up…</p>
+                <p class="text-yellow-700 text-sm mb-3">The assessment service is still loading (~11 GB of models on first boot).<br>Retrying automatically in <strong>${s}s</strong>…</p>
+                <p class="text-xs text-yellow-600">See the <a href="https://github.com/jchimino/ttb-automate#setup" target="_blank" class="underline font-medium">README → Setup section</a> for first-boot details.</p>
             </div>`;
-        grid.appendChild(d);
-    });
+    };
+    renderWaiting(countdown);
+    const timer = setInterval(() => {
+        countdown--;
+        if (countdown <= 0) {
+            clearInterval(timer);
+            verifySingle();
+        } else {
+            renderWaiting(countdown);
+        }
+    }, 1000);
 }
-
-function removeBatchItem(i) {
-    batchFiles.splice(i, 1);
-    renderBatchQueue();
-    if (!batchFiles.length) document.getElementById('batch-results').classList.add('hidden');
-}
-
-function clearBatch() {
-    batchFiles = [];
-    document.getElementById('input-batch').value = '';
-    renderBatchQueue();
-    document.getElementById('batch-results').classList.add('hidden');
-}
-
 async function verifyBatch() {
     if (!batchFiles.length) return;
     const token = await getAuthToken();
