@@ -347,3 +347,77 @@ function escHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+
+/* ─── Single result renderer ────────────────────────────────────────── */
+/* Called after a successful /api/verify-label response.                */
+/* Displays field-by-field compliance findings + a Groq attribution     */
+/* badge when cloud inference was used (no local GPU available).        */
+function renderSingleResult(data) {
+    const el = document.getElementById('results-single');
+    if (!el) return;
+
+    const pass        = data.overall_status === 'PASS';
+    const warn        = data.overall_status === 'WARNING';
+    const score       = data.compliance_score ?? 0;
+    const scoreColor  = score >= 80 ? 'text-green-700' : score >= 50 ? 'text-yellow-700' : 'text-red-700';
+    const borderColor = pass ? 'border-green-200' : warn ? 'border-yellow-200' : 'border-red-200';
+    const bgColor     = pass ? 'bg-green-50'      : warn ? 'bg-yellow-50'      : 'bg-red-50';
+    const statusIcon  = pass ? '✓ PASS'           : warn ? '⚠ REVIEW'          : '✗ FAIL';
+    const statusColor = pass ? 'text-green-800'   : warn ? 'text-yellow-800'   : 'text-red-800';
+
+    // Cloud API attribution badge — shown when Groq handled the inference
+    // because no local GPU was detected. This is the demo fallback path.
+    const cloudBadge = data.cloud_api
+        ? `<div class="mt-3 flex items-center gap-2 text-xs text-gray-500 border border-gray-200 rounded px-3 py-2 bg-gray-50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+            </svg>
+            <span>
+              Inference powered by <strong>${escHtml(data.cloud_provider || 'Groq')}</strong>
+              — demo mode, no local GPU detected.
+              In production, all inference runs on-premises via Ollama.
+            </span>
+          </div>`
+        : '';
+
+    // Build field rows
+    const fieldRows = (data.checks || data.findings || []).map(c => {
+        const fs = (c.status || 'UNKNOWN').toUpperCase();
+        const icon  = fs === 'PASS'    ? '✓' : fs === 'WARNING' ? '⚠' : '✗';
+        const color = fs === 'PASS'    ? 'text-green-700 bg-green-50 border-green-100'
+                    : fs === 'WARNING' ? 'text-yellow-700 bg-yellow-50 border-yellow-100'
+                    :                   'text-red-700 bg-red-50 border-red-100';
+        const cfr   = c.cfr_reference ? ` <span class="text-xs font-mono text-gray-400">${escHtml(c.cfr_reference)}</span>` : '';
+        return `<div class="flex items-start gap-2 border rounded px-3 py-2 ${color} text-sm">
+            <span class="font-bold flex-shrink-0 mt-px">${icon}</span>
+            <div class="min-w-0">
+              <span class="font-semibold">${escHtml(c.field)}</span>${cfr}
+              ${c.reason ? `<p class="text-xs mt-0.5 opacity-80">${escHtml(c.reason)}</p>` : ''}
+            </div>
+          </div>`;
+    }).join('');
+
+    const critSection = data.critical_failures?.length
+        ? `<div class="text-red-800 bg-red-50 border border-red-200 rounded p-2 text-sm"><strong>Critical:</strong> ${data.critical_failures.map(escHtml).join('; ')}</div>`
+        : '';
+
+    const warnSection = data.warnings?.length
+        ? `<div class="text-yellow-800 bg-yellow-50 border border-yellow-200 rounded p-2 text-sm"><strong>Warnings:</strong> ${data.warnings.map(escHtml).join('; ')}</div>`
+        : '';
+
+    el.innerHTML = `
+      <div class="border ${borderColor} rounded-lg overflow-hidden">
+        <div class="${bgColor} px-4 py-3 flex items-center justify-between">
+          <span class="font-bold ${statusColor} text-base">${statusIcon}</span>
+          <span class="font-bold ${scoreColor} text-lg">${score}/100</span>
+        </div>
+        <div class="p-4 space-y-2 bg-white">
+          ${data.commodity_type ? `<p class="text-xs text-gray-500 mb-2">Commodity: <strong>${escHtml(data.commodity_type)}</strong></p>` : ''}
+          ${critSection}
+          ${warnSection}
+          ${fieldRows}
+          ${cloudBadge}
+        </div>
+      </div>`;
+}
