@@ -41,8 +41,6 @@ services:
       - .env
     environment:
       LOCAL_LLM_URL: http://assess:8000
-      OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: llava:7b
     volumes:
       # Live-mount source files so changes take effect on restart without rebuild
       - ./python_app/templates:/app/templates:ro
@@ -71,8 +69,7 @@ services:
       TEXT_MODEL: qwen2.5:7b
       OCR_HOST: http://ocr:8001
       DATABASE_URL: postgresql://ttb:ttb@postgres:5432/ttb
-      # Cloud API fallback — used when no GPU detected (CPU-only demo mode).
-      # Set ANTHROPIC_API_KEY in .env. Leave blank for fully local/offline operation.
+      # Cloud fallback for CPU-only demo. Set in .env; leave blank for local-only.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       ollama-pull:
@@ -122,7 +119,7 @@ services:
 
   # ── One-shot model pull ──────────────────────────────────────────────────
   # Reuses the ollama build (Ubuntu + curl) so the shell handles JSON cleanly.
-  # Pulls llava:7b (vision model) then qwen2.5:14b (text/reconcile fallback).
+  # Pulls llava:7b (vision model) then qwen2.5:7b (text/reconcile fallback).
   # Exits 0 when both are done; assess waits on service_completed_successfully.
   ollama-pull:
     build:
