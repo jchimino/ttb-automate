@@ -15,7 +15,7 @@ docker compose up --build
 
 # 3. Once running, open your browser and navigate to:
 #    http://localhost:8004        ← main web UI
-#    http://localhost:5678        ← n8n workflow editor (login: admin / ttbexpress)
+#    http://localhost:15678        ← n8n workflow editor (login: admin / ttbexpress)
 #
 # Note: First boot pulls ~11 GB of models. Subsequent starts reuse the cached volume.
 ```
@@ -46,10 +46,10 @@ Browser ──▶ ttb-app (FastAPI :8004)
                ├──▶ ocr (:8001)    (Tesseract, 4 rotations)
                └──▶ postgres (:5432) (audit log)
 
-n8n (:5678) ◀── webhook ── decision routing
+n8n (:15678) ◀── webhook ── decision routing
 ```
 
-Six services on one internal Docker network. Only ports 8004 and 5678 are exposed to the host. Everything else — database, models, OCR — is unreachable from outside.
+Six services on one internal Docker network. Only ports 8004 and 15678 are exposed to the host. Everything else — database, models, OCR — is unreachable from outside.
 
 ### Two Assessment Strategies
 
