@@ -17,7 +17,8 @@ docker compose up --build
 #    http://localhost:8004        ← main web UI
 #    http://localhost:15678        ← n8n workflow editor (login: admin / ttbexpress)
 #
-# Note: First boot pulls ~11 GB of models. Subsequent starts reuse the cached volume.
+# Note: First boot pulls ~4.4 GB (qwen2.5:7b for CPU). GPU users also pull llava:7b (~8.8 GB total).
+# Subsequent starts reuse the cached volume.
 ```
 
 ---
