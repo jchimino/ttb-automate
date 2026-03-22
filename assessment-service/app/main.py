@@ -7,22 +7,22 @@ GPU detected  → VISION strategy
   Images sent directly to llava:7b running in Ollama.
   The LLM reads label and form visually.
 
-CPU only      → RECONCILE + GROQ strategy
+CPU only      → RECONCILE + ANTHROPIC strategy
   Step 1: OCR service extracts text from all images → JSON
-  Step 2: Groq API (llama-3.3-70b-versatile) receives structured JSON
+  Step 2: Claude API (claude-haiku-4-5) receives structured OCR JSON
   Step 3: Result returned to caller
 
-  ⚠  Groq API is used for demonstration purposes when a local GPU is
-     unavailable. In a production deployment all inference runs on-premises
-     via Ollama. Set GROQ_API_KEY in .env to enable; leave blank and the
-     service will fall back to the local qwen2.5:7b model via Ollama.
+  ⚠  The Anthropic Claude API is used for demonstration purposes when a
+     local GPU is unavailable. In a production deployment all inference
+     runs on-premises via Ollama. Set ANTHROPIC_API_KEY in .env to enable;
+     leave blank and the service falls back to local qwen2.5:7b via Ollama.
 
 Either strategy produces the same output schema. n8n doesn't need to know
 which path ran — it just receives the verdict.
 
 POST /assess
-  form_image   (file, optional) — TTB application form PNG/JPEG
-  label_images (files)          — one or more label images
+  form_image    (file, optional) — TTB application form PNG/JPEG
+  label_images  (files)          — one or more label images
   submission_id (string, optional)
 """
 
@@ -49,16 +49,15 @@ from models import AssessmentResult, FieldResult
 
 app = FastAPI(title="TTB Label Compliance API")
 
-OLLAMA_HOST   = os.getenv("OLLAMA_HOST",   "http://ollama:11434")
-OLLAMA_MODEL  = os.getenv("OLLAMA_MODEL",  "llama3.2-vision")   # vision path
-TEXT_MODEL    = os.getenv("TEXT_MODEL",    "qwen2.5:7b")        # local reconcile fallback
-OCR_HOST      = os.getenv("OCR_HOST",      "http://ocr:8001")
-DATABASE_URL  = os.getenv("DATABASE_URL")
-GROQ_API_KEY  = os.getenv("GROQ_API_KEY",  "")                  # demo cloud fallback
+OLLAMA_HOST       = os.getenv("OLLAMA_HOST",       "http://ollama:11434")
+OLLAMA_MODEL      = os.getenv("OLLAMA_MODEL",      "llama3.2-vision")   # vision path
+TEXT_MODEL        = os.getenv("TEXT_MODEL",        "qwen2.5:7b")        # local reconcile fallback
+OCR_HOST          = os.getenv("OCR_HOST",          "http://ocr:8001")
+DATABASE_URL      = os.getenv("DATABASE_URL")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")                  # demo cloud fallback
 
-# Groq model names
-GROQ_TEXT_MODEL   = "llama-3.3-70b-versatile"
-GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview"
+# Anthropic model for CPU-only demo path
+ANTHROPIC_MODEL   = "claude-haiku-4-5"
 
 # Known multimodal/vision model name fragments
 _VISION_MODEL_NAMES = (
@@ -69,8 +68,8 @@ _VISION_MODEL_NAMES = (
 # Set at startup
 STRATEGY        = "unknown"
 ACTIVE_MODEL    = OLLAMA_MODEL
-MODEL_READY     = False   # True once warm-up probe succeeds (or Groq is ready)
-USING_CLOUD_API = False   # True when Groq handles inference (no local GPU)
+MODEL_READY     = False   # True once warm-up probe succeeds (or cloud API is ready)
+USING_CLOUD_API = False   # True when Anthropic handles inference (no local GPU)
 
 
 def _is_vision_model(name: str) -> bool:
@@ -87,11 +86,11 @@ async def detect_strategy():
     Detect hardware FIRST, then choose strategy.
 
     GPU + vision model  → VISION      (Ollama / llava:7b, direct image inference)
-    CPU only + Groq key → RECONCILE   (OCR → Groq API, fast cloud inference)
+    CPU only + API key  → RECONCILE   (OCR → Anthropic Claude API, fast cloud inference)
     CPU only, no key    → RECONCILE   (OCR → local qwen2.5:7b via Ollama)
 
-    ⚠  Groq is used for demonstration purposes only when no local GPU is
-       present. In production all inference runs on-premises.
+    ⚠  The Anthropic Claude API is used for demonstration purposes only when no
+       local GPU is present. In production all inference runs on-premises.
     """
     global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API
 
@@ -115,30 +114,29 @@ async def detect_strategy():
         USING_CLOUD_API = False
         print(f"[startup] GPU confirmed + vision model ({OLLAMA_MODEL}) → VISION strategy (Ollama)")
 
-    elif GROQ_API_KEY:
-        # No GPU, but Groq key present — use cloud API for demo
+    elif ANTHROPIC_API_KEY:
+        # No GPU, but Anthropic key present — use Claude API for demo
         STRATEGY        = "reconcile"
-        ACTIVE_MODEL    = GROQ_TEXT_MODEL
+        ACTIVE_MODEL    = ANTHROPIC_MODEL
         USING_CLOUD_API = True
-        print(f"[startup] No GPU detected → RECONCILE strategy (Groq API / {GROQ_TEXT_MODEL})")
-        print(f"[startup] ⚠  Groq API active — demo mode, no local GPU available")
+        print(f"[startup] No GPU detected → RECONCILE strategy (Anthropic / {ANTHROPIC_MODEL})")
+        print(f"[startup] ⚠  Anthropic Claude API active — demo mode, no local GPU available")
 
     else:
-        # No GPU, no Groq key — fall back to local text model
+        # No GPU, no API key — fall back to local text model
         STRATEGY        = "reconcile"
         ACTIVE_MODEL    = TEXT_MODEL
         USING_CLOUD_API = False
-        reason = "no GPU detected, no GROQ_API_KEY set"
-        print(f"[startup] {reason} → RECONCILE strategy (local Ollama / {TEXT_MODEL})")
+        print(f"[startup] No GPU, no ANTHROPIC_API_KEY → RECONCILE strategy (local Ollama / {TEXT_MODEL})")
 
     print(f"[startup] Ollama: {OLLAMA_HOST} | Strategy: {STRATEGY.upper()} | Active model: {ACTIVE_MODEL} | Cloud API: {USING_CLOUD_API}")
 
     # ── Step 3: Warm-up probe ──────────────────────────────────────────────────
-    # Groq is always ready — no warm-up needed.
+    # Anthropic API is always ready — no warm-up needed.
     # For local Ollama paths, block until the model can respond.
     if USING_CLOUD_API:
         MODEL_READY = True
-        print(f"[startup] Groq API ready — no warm-up probe needed.")
+        print(f"[startup] Anthropic API ready — no warm-up probe needed.")
         return
 
     probe_model = ACTIVE_MODEL
@@ -209,34 +207,34 @@ def _resize_image(img_bytes: bytes, max_px: int = 512) -> bytes:
     return buf.getvalue()
 
 
-# ── Groq call ─────────────────────────────────────────────────────────────────
+# ── Anthropic call ────────────────────────────────────────────────────────────
 
-async def call_groq(prompt: str, model: str = GROQ_TEXT_MODEL) -> str:
+async def call_anthropic(prompt: str, model: str = ANTHROPIC_MODEL) -> str:
     """
-    Call the Groq API for fast cloud inference.
+    Call the Anthropic Claude API for fast cloud inference.
     Used when no local GPU is detected (demo / CPU-only mode).
     ⚠  For demonstration purposes only — production runs on-premises via Ollama.
     """
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type":  "application/json",
+        "x-api-key":         ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type":      "application/json",
     }
     payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
+        "model":      model,
         "max_tokens": 1024,
+        "messages":   [{"role": "user", "content": prompt}],
     }
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
+            "https://api.anthropic.com/v1/messages",
             headers=headers,
             json=payload,
         )
     if not r.is_success:
-        raise RuntimeError(f"Groq API {r.status_code}: {r.text[:300]}")
+        raise RuntimeError(f"Anthropic API {r.status_code}: {r.text[:300]}")
     data = r.json()
-    return data["choices"][0]["message"]["content"]
+    return data["content"][0]["text"]
 
 
 # ── Ollama call ───────────────────────────────────────────────────────────────
@@ -309,10 +307,10 @@ async def run_reconcile(
     """
     Two-step path for CPU-only machines.
     Step 1: OCR extracts text from all images.
-    Step 2: LLM (Groq cloud or local Ollama) interprets OCR text against CFR rules.
+    Step 2: LLM (Anthropic Claude or local Ollama) interprets OCR text against CFR rules.
 
-    When USING_CLOUD_API is True, Step 2 calls the Groq API.
-    ⚠  Groq is used for demonstration purposes only when no local GPU is available.
+    When USING_CLOUD_API is True, Step 2 calls the Anthropic Claude API.
+    ⚠  Anthropic is used for demonstration purposes only when no local GPU is available.
     """
     all_images = ([form_bytes] if form_bytes else []) + label_bytes
 
@@ -333,9 +331,9 @@ async def run_reconcile(
     )
 
     if USING_CLOUD_API:
-        print(f"[reconcile] Sending to Groq ({GROQ_TEXT_MODEL}) — demo mode, no local GPU ⚠")
-        raw    = await call_groq(prompt, model=GROQ_TEXT_MODEL)
-        result = AssessmentResult.from_llm_response(raw, submission_id, GROQ_TEXT_MODEL)
+        print(f"[reconcile] Sending to Anthropic ({ANTHROPIC_MODEL}) — demo mode, no local GPU ⚠")
+        raw    = await call_anthropic(prompt, model=ANTHROPIC_MODEL)
+        result = AssessmentResult.from_llm_response(raw, submission_id, ANTHROPIC_MODEL)
     else:
         print(f"[reconcile] Sending to Ollama ({TEXT_MODEL})...")
         raw    = await call_ollama(prompt, all_images, model=TEXT_MODEL)
@@ -356,9 +354,9 @@ async def run_reconcile(
 
 @app.post("/assess")
 async def assess(
-    label_images:  list[UploadFile]  = File(...),
+    label_images:  list[UploadFile]     = File(...),
     form_image:    Optional[UploadFile] = File(None),
-    submission_id: Optional[str]     = Form(None),
+    submission_id: Optional[str]        = Form(None),
 ):
     if not submission_id:
         submission_id = f"SUB-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6].upper()}"
@@ -390,7 +388,7 @@ async def assess(
         "strategy":       STRATEGY,
         "active_model":   ACTIVE_MODEL,
         "cloud_api":      USING_CLOUD_API,
-        "cloud_provider": "Groq" if USING_CLOUD_API else None,
+        "cloud_provider": "Anthropic" if USING_CLOUD_API else None,
     })
 
 
@@ -410,12 +408,12 @@ async def health():
             },
         )
     return {
-        "status":           "ok",
-        "strategy":         STRATEGY,
-        "active_model":     ACTIVE_MODEL,
-        "cloud_api":        USING_CLOUD_API,
-        "cloud_provider":   "Groq" if USING_CLOUD_API else None,
-        "vision_model":     OLLAMA_MODEL,
-        "text_model":       TEXT_MODEL,
-        "ollama":           OLLAMA_HOST,
+        "status":         "ok",
+        "strategy":       STRATEGY,
+        "active_model":   ACTIVE_MODEL,
+        "cloud_api":      USING_CLOUD_API,
+        "cloud_provider": "Anthropic" if USING_CLOUD_API else None,
+        "vision_model":   OLLAMA_MODEL,
+        "text_model":     TEXT_MODEL,
+        "ollama":         OLLAMA_HOST,
     }
