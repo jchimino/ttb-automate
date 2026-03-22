@@ -113,9 +113,16 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    # ── GPU passthrough ────────────────────────────────────────────────────
-    # CPU-only by default. To enable NVIDIA GPU acceleration:
-    #   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+    # ── GPU passthrough (NVIDIA) ──────────────────────────────────────────
+    # Ignored on machines without the NVIDIA Container Toolkit.
+    # Remove this block entirely if you never need GPU acceleration.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   # ── One-shot model pull ──────────────────────────────────────────────────
   # Reuses the ollama build (Ubuntu + curl) so the shell handles JSON cleanly.
@@ -127,6 +134,9 @@ services:
       dockerfile: Dockerfile
     container_name: ttb-ollama-pull
     entrypoint: ["/pull-models.sh"]
+    environment:
+      # Forwarded so pull-models.sh can skip downloads when Anthropic handles inference
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       ollama:
         condition: service_healthy
