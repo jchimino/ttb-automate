@@ -3,6 +3,11 @@
 A containerized proof-of-concept that automates Certificate of Label Approval (COLA) screening for alcohol beverage labels using on-premises AI. No cloud APIs. No outbound data transfers. One command to run.
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/jchimino/ttb-automate.git
+cd ttb-automate
+
+# 2. Start everything (builds images, pulls models ~11 GB on first boot)
 docker compose up --build        # builds, pulls models (~11 GB first boot), starts everything
 open http://localhost:8004       # web UI
 open http://localhost:5678       # n8n workflow editor (admin / ttbexpress)
