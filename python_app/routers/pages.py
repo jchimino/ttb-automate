@@ -7,7 +7,7 @@ import os
 
 from config import SUPABASE_URL, SUPABASE_ANON_KEY
 
-templates_dir = os.path.join(os.path.dirname(__file__), '..', 'templates')
+templates_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
 templates = Jinja2Templates(directory=templates_dir)
 
 router = APIRouter()
