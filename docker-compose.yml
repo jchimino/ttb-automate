@@ -111,14 +111,9 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
-    # ── GPU passthrough (remove if no NVIDIA Container Toolkit) ────────────
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # ── GPU passthrough ────────────────────────────────────────────────────
+    # CPU-only by default. To enable NVIDIA GPU acceleration:
+    #   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
   # ── One-shot model pull ──────────────────────────────────────────────────
   # Reuses the ollama build (Ubuntu + curl) so the shell handles JSON cleanly.
