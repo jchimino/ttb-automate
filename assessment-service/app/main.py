@@ -70,34 +70,42 @@ def _is_vision_model(name: str) -> bool:
 
 @app.on_event("startup")
 async def detect_strategy():
+    """
+    Detect hardware FIRST, then choose strategy.
+    GPU + vision model  → VISION   (direct image inference, fast)
+    CPU only            → RECONCILE (OCR → text LLM, always works)
+
+    Order matters: a vision model name alone is not sufficient.
+    Running llava/llama-vision on CPU hits Ollama's 5-min timeout on every request.
+    """
     global STRATEGY, ACTIVE_MODEL
 
-    # Primary: if OLLAMA_MODEL is a known vision model, use vision strategy.
-    # No GPU probe needed — llava:7b is always multimodal regardless of hardware.
-    if _is_vision_model(OLLAMA_MODEL):
+    # ── Step 1: Probe GPU via Ollama /api/show ─────────────────────────────────
+    # When a model is loaded on an accelerator Ollama surfaces the backend name
+    # ("cuda", "metal", "rocm") somewhere in the model-info response.
+    has_gpu = False
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            r       = await client.post(f"{OLLAMA_HOST}/api/show", json={"name": OLLAMA_MODEL})
+            info    = r.json()
+            details = str(info).lower()
+            has_gpu = "cuda" in details or "metal" in details or "rocm" in details
+            print(f"[startup] GPU probe via /api/show → has_gpu={has_gpu}")
+    except Exception as e:
+        print(f"[startup] Could not query Ollama model info (assuming CPU): {e}")
+
+    # ── Step 2: Choose strategy ────────────────────────────────────────────────
+    if has_gpu and _is_vision_model(OLLAMA_MODEL):
         STRATEGY     = "vision"
         ACTIVE_MODEL = OLLAMA_MODEL
-        print(f"[startup] Vision model detected ({OLLAMA_MODEL}) → VISION strategy")
+        print(f"[startup] GPU confirmed + vision model ({OLLAMA_MODEL}) → VISION strategy")
     else:
-        # Fallback: check Ollama /api/show for cuda/metal as before
-        has_gpu = False
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r       = await client.post(f"{OLLAMA_HOST}/api/show", json={"name": OLLAMA_MODEL})
-                info    = r.json()
-                details = str(info)
-                has_gpu = "cuda" in details.lower() or "metal" in details.lower()
-        except Exception as e:
-            print(f"[startup] Could not query Ollama model info: {e}")
+        STRATEGY     = "reconcile"
+        ACTIVE_MODEL = TEXT_MODEL
+        reason = "no GPU detected" if not has_gpu else f"{OLLAMA_MODEL} is text-only"
+        print(f"[startup] {reason} → RECONCILE strategy (model: {TEXT_MODEL})")
 
-        if has_gpu:
-            STRATEGY     = "vision"
-            ACTIVE_MODEL = OLLAMA_MODEL
-        else:
-            STRATEGY     = "reconcile"
-            ACTIVE_MODEL = TEXT_MODEL
-
-    print(f"[startup] Ollama: {OLLAMA_HOST} | Strategy: {STRATEGY.upper()} | Model: {ACTIVE_MODEL}")
+    print(f"[startup] Ollama: {OLLAMA_HOST} | Strategy: {STRATEGY.upper()} | Active model: {ACTIVE_MODEL}")
 
     # Warm-up probe — block until Ollama can respond to a real generate call.
     # Without this the /health endpoint would return 200 while models are still
