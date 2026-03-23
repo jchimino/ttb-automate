@@ -1,8 +1,11 @@
 """
 Compliance Prompts
 ==================
-Two prompt builders — one for the vision path (GPU), one for the OCR path (CPU).
-Same output schema either way.
+Two prompt builders — one for the vision path (llava:7b), one for the OCR/reconcile path.
+
+IMPORTANT: Both builders use identical CFR rules and scoring logic, matching the
+Anthropic BAM verifier prompt used by the API path. The government health warning
+is a hard binary PASS/FAIL — partial presence is never sufficient.
 """
 
 REQUIRED_HEALTH_WARNING = (
@@ -11,6 +14,10 @@ REQUIRED_HEALTH_WARNING = (
     "birth defects. (2) Consumption of alcoholic beverages impairs your "
     "ability to drive a car or operate machinery, and may cause health problems."
 )
+
+# Clause fragments that MUST both be present for health_warning to PASS
+_WARNING_CLAUSE_1 = "surgeon general"          # pregnancy / birth defects clause
+_WARNING_CLAUSE_2 = "impairs your ability"     # driving / machinery clause
 
 _FIELD_SCHEMA = """
 Return ONLY this JSON — no markdown, no explanation outside it:
@@ -32,7 +39,7 @@ Return ONLY this JSON — no markdown, no explanation outside it:
       "status": "PASS" | "REVIEW" | "FAIL",
       "found_on_label": "<text or null>",
       "reference_value": "<text or null>",
-      "note": null
+      "note": "<cite the valid TTB Standard of Identity if FAIL>"
     },
     {
       "name": "alcohol_content",
@@ -57,10 +64,10 @@ Return ONLY this JSON — no markdown, no explanation outside it:
     },
     {
       "name": "health_warning",
-      "status": "PASS" | "REVIEW" | "FAIL",
-      "found_on_label": "<full warning text or null>",
-      "reference_value": "statutory text",
-      "note": "<note if rotated, small, truncated, or caps not confirmed>"
+      "status": "PASS" | "FAIL",
+      "found_on_label": "<full warning text as found, or null>",
+      "reference_value": "statutory text per 27 CFR Part 16",
+      "note": "<state exactly which clause(s) are missing or incomplete>"
     }
   ]
 }
@@ -68,42 +75,76 @@ Return ONLY this JSON — no markdown, no explanation outside it:
 
 _TTB_RULES = f"""
 TTB mandatory label requirements (27 CFR Parts 4, 5, 7):
-  1. brand_name       — producer/winery/distillery name
-  2. class_type       — beverage category (e.g. Red Wine, Bourbon Whiskey, Beer)
-  3. alcohol_content  — ABV percentage (e.g. 11.5% by volume)
-  4. net_contents     — volume (e.g. 750mL) — may be embossed on bottle, not label
-  5. bottler_info     — producer name and address
-  6. health_warning   — exact statutory text required:
-     "{REQUIRED_HEALTH_WARNING}"
+  1. brand_name      — producer/winery/distillery name
+  2. class_type      — Standard of Identity per BAM (see rules below)
+  3. alcohol_content — ABV percentage (e.g. 13.5% by volume)
+  4. net_contents    — metric volume (e.g. 750 mL) — may be embossed on bottle
+  5. bottler_info    — producer name AND city/state or country
+  6. health_warning  — FULL statutory text, both clauses, per 27 CFR Part 16
 
-Decision rules:
-  APPROVE — all mandatory fields present and consistent with the application form
-  REVIEW  — a field is ambiguous or needs a human look; do NOT use REVIEW when
-            text is clearly present but OCR quality is uncertain
-  DENY    — a mandatory field is definitively absent or clearly conflicts
+═══════════════════════════════════════════════════════
+CLASS & TYPE RULES — Standard of Identity (CRITICAL)
+═══════════════════════════════════════════════════════
+Wine (27 CFR Part 4):
+  VALID classes: Table Wine, Red Table Wine, White Table Wine, Rosé Table Wine,
+    Dessert Wine, Sparkling Wine, Champagne, Port, Sherry, Merlot, Cabernet
+    Sauvignon, Chardonnay, Pinot Noir (varietal = class if ≥75% of stated grape)
+  INVALID: "Red Wine" alone is a COLOR, not a class. It MUST be accompanied by
+    a valid class designation (e.g. "Red Table Wine"). Mark FAIL if the only
+    class shown is "Red Wine" without a qualifying Standard of Identity term.
 
-Field status rules — apply TTB standards accurately:
-  PASS    — field is present on the label (even if OCR quality was uncertain,
-            even if capitalization differs, even if wording is paraphrased)
-  REVIEW  — field is genuinely ambiguous (conflicting information, partially
-            visible, or the label appears to be for a different product)
-  FAIL    — field is completely absent with no trace
+Spirits (27 CFR Part 5):
+  VALID: Bourbon Whisky, Straight Bourbon Whisky, Vodka, Gin, Rum, Tequila,
+    Brandy, Cognac, Scotch Whisky, Irish Whiskey, Liqueur, Cordial, etc.
+  INVALID: Generic terms like "Spirit" or "Distilled Spirit" without a class.
 
-Specific guidance:
-  - brand_name: if ANY brand or producer name is found, mark PASS
-  - net_contents: if absent from label text, mark PASS with note "may be
-    embossed on bottle" — this is standard practice and not a defect
-  - health_warning: the FULL statutory text is required per 27 CFR §16. Both
-    clauses must be present: (1) Surgeon General/pregnancy/birth defects AND
-    (2) impairs your ability/drive/machinery. If either clause is missing or
-    truncated, mark FAIL. Partial presence is NOT sufficient.
-  - "750ML", "750 ml", "750 MILLILITERS" are equivalent
-  - class_type must match a valid TTB Standard of Identity. "Red Wine" is a
-     color designation only — it is NOT a valid class. Valid wine classes include
-     "Table Wine", "Red Table Wine", "Dessert Wine", "Sparkling Wine", etc.
-     If the label shows only "Red Wine" without a valid class designation, mark FAIL
-  - Minor capitalization and punctuation differences are never failures
-  - If OCR text is blurry/unclear but a field appears to be present, PASS it
+Malt Beverages (27 CFR Part 7):
+  VALID: Beer, Ale, Lager, Stout, Porter, Pilsner, Malt Liquor, India Pale Ale
+  INVALID: "Malt Beverage" alone without a specific class.
+
+═══════════════════════════════════════════════════════
+GOVERNMENT WARNING — HARD BINARY RULE (27 CFR Part 16)
+═══════════════════════════════════════════════════════
+The COMPLETE statutory text is required. BOTH clauses must appear:
+
+  Clause 1: "According to the Surgeon General, women should not drink
+             alcoholic beverages during pregnancy because of the risk of
+             birth defects."
+  Clause 2: "Consumption of alcoholic beverages impairs your ability to
+             drive a car or operate machinery, and may cause health problems."
+
+  PASS: Both clauses are fully present (rotated, small print, or partial
+        legibility is acceptable IF the full text is discernible).
+  FAIL: Either clause is absent, truncated beyond recognition, or the warning
+        says only "Contains Sulfites" or references only one clause.
+
+  ⚠ NEVER mark health_warning REVIEW — it is always PASS or FAIL.
+  ⚠ "Contains Sulfites" is a separate sulfite declaration, NOT the health warning.
+  ⚠ A label that only shows "GOVERNMENT WARNING: Contains Sulfites" is a FAIL.
+
+═══════════════════════════════════════════════════════
+DECISION RULES
+═══════════════════════════════════════════════════════
+  APPROVE — all mandatory fields present and fully compliant with 27 CFR
+  REVIEW  — a field is genuinely ambiguous (partially visible, conflicting
+             data); do NOT use REVIEW to soften a clear compliance failure
+  DENY    — a mandatory field is absent, incomplete, or uses an invalid
+             designation; OR health_warning is FAIL; OR class_type is FAIL
+
+  A non-empty critical_failures list (health_warning FAIL, class_type FAIL,
+  or any mandatory field FAIL) forces DENY regardless of other scores.
+
+═══════════════════════════════════════════════════════
+FIELD STATUS RULES
+═══════════════════════════════════════════════════════
+  PASS   — field is present and meets the TTB Standard of Identity
+           (minor capitalization differences OK; paraphrasing is NOT OK)
+  REVIEW — field is genuinely ambiguous (conflicting data, genuinely
+           partially visible — not just rotated or small print)
+  FAIL   — field is absent, uses an invalid designation, or (for
+           health_warning) either statutory clause is missing
+
+  health_warning has only two states: PASS or FAIL — never REVIEW.
 """
 
 
@@ -142,8 +183,8 @@ If OCR and visual read conflict, trust your visual interpretation of the image.
 
 def build_prompt_ocr(ocr_text: str, n_labels: int, has_form: bool, submission_id: str) -> str:
     """
-    CPU path — OCR text is the primary input.
-    Images are still sent to the model as visual backup for anything OCR missed.
+    Fallback path — OCR text is the primary input (no GPU / llava unavailable).
+    Uses identical CFR rules as the vision path and the Anthropic BAM verifier.
     """
     prompt = "You are a TTB (Alcohol and Tobacco Tax and Trade Bureau) compliance specialist.\n\n"
     prompt += _TTB_RULES
@@ -157,10 +198,10 @@ Use this as your PRIMARY source. The images are also provided as visual backup.
 {ocr_text}
 --- END OCR TEXT ---
 
-IMPORTANT: OCR on printed labels is imperfect. Use the extracted text as your
-primary evidence. Do NOT assume a field is present because of the label type —
-only mark PASS if the text evidence actually supports it. A missing or incomplete
-field must be marked FAIL regardless of label category.
+OCR GUIDANCE: OCR output may be imperfect (fragmented lines, misread characters).
+Use your best judgment to reconstruct what the label likely says — but only mark
+PASS if the evidence actually supports it. Do NOT assume a field is present because
+it would be expected on this type of label. Evaluate what is actually in the text.
 """
 
     if has_form:
