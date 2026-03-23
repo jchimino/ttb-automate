@@ -82,7 +82,7 @@ Decision rules:
             text is clearly present but OCR quality is uncertain
   DENY    — a mandatory field is definitively absent or clearly conflicts
 
-Field status rules — be GENEROUS, not strict:
+Field status rules — apply TTB standards accurately:
   PASS    — field is present on the label (even if OCR quality was uncertain,
             even if capitalization differs, even if wording is paraphrased)
   REVIEW  — field is genuinely ambiguous (conflicting information, partially
@@ -93,11 +93,15 @@ Specific guidance:
   - brand_name: if ANY brand or producer name is found, mark PASS
   - net_contents: if absent from label text, mark PASS with note "may be
     embossed on bottle" — this is standard practice and not a defect
-  - health_warning: if ANY portion of the government warning text is detected
-    (e.g. "Surgeon General", "pregnancy", "impairs your ability"), mark PASS.
-    The full exact text is hard to OCR — presence is sufficient.
+  - health_warning: the FULL statutory text is required per 27 CFR §16. Both
+    clauses must be present: (1) Surgeon General/pregnancy/birth defects AND
+    (2) impairs your ability/drive/machinery. If either clause is missing or
+    truncated, mark FAIL. Partial presence is NOT sufficient.
   - "750ML", "750 ml", "750 MILLILITERS" are equivalent
-  - "Red Wine" and "TABLE RED WINE" are the same class
+  - class_type must match a valid TTB Standard of Identity. "Red Wine" is a
+     color designation only — it is NOT a valid class. Valid wine classes include
+     "Table Wine", "Red Table Wine", "Dessert Wine", "Sparkling Wine", etc.
+     If the label shows only "Red Wine" without a valid class designation, mark FAIL
   - Minor capitalization and punctuation differences are never failures
   - If OCR text is blurry/unclear but a field appears to be present, PASS it
 """
@@ -138,9 +142,10 @@ Use this as your PRIMARY source. The images are also provided as visual backup.
 {ocr_text}
 --- END OCR TEXT ---
 
-IMPORTANT: OCR on printed labels is imperfect. If a field looks like it should
-be present based on the label type (e.g. a wine label will always have a health
-warning somewhere), lean toward PASS rather than REVIEW or FAIL.
+IMPORTANT: OCR on printed labels is imperfect. Use the extracted text as your
+primary evidence. Do NOT assume a field is present because of the label type —
+only mark PASS if the text evidence actually supports it. A missing or incomplete
+field must be marked FAIL regardless of label category.
 """
 
     if has_form:
