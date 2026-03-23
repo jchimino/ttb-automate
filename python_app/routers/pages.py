@@ -25,6 +25,7 @@ def _find_templates_dir() -> str:
     return candidates[0]
 
 _templates_dir = _find_templates_dir()
+print(f"[pages] Templates directory: {_templates_dir}")
 templates = Jinja2Templates(directory=_templates_dir)
 
 router = APIRouter()
