@@ -86,12 +86,16 @@ TTB mandatory label requirements (27 CFR Parts 4, 5, 7):
 CLASS & TYPE RULES — Standard of Identity (CRITICAL)
 ═══════════════════════════════════════════════════════
 Wine (27 CFR Part 4):
-  VALID classes: Table Wine, Red Table Wine, White Table Wine, Rosé Table Wine,
-    Dessert Wine, Sparkling Wine, Champagne, Port, Sherry, Merlot, Cabernet
-    Sauvignon, Chardonnay, Pinot Noir (varietal = class if ≥75% of stated grape)
-  INVALID: "Red Wine" alone is a COLOR, not a class. It MUST be accompanied by
-    a valid class designation (e.g. "Red Table Wine"). Mark FAIL if the only
-    class shown is "Red Wine" without a qualifying Standard of Identity term.
+  VALID designations: Table Wine, Red Wine, White Wine, Rosé Wine, Pink Wine,
+    Red Table Wine, White Table Wine, Rosé Table Wine, Dessert Wine, Sparkling
+    Wine, Champagne, Port, Sherry, Merlot, Cabernet Sauvignon, Chardonnay,
+    Pinot Noir (varietal = class if ≥75% of stated grape)
+  NOTE: "Red Wine", "White Wine", "Rosé Wine", and "Pink Wine" ARE valid type
+    designations under 27 CFR 4.21(a)(1) — they describe a still grape wine by
+    color. A label showing "Red Wine" satisfies the class/type requirement.
+    Do NOT fail "Red Wine" as a class/type designation.
+  INVALID: Generic terms like "Wine" alone without a color or class qualifier,
+    or fabricated style names with no TTB Standard of Identity.
 
 Spirits (27 CFR Part 5):
   VALID: Bourbon Whisky, Straight Bourbon Whisky, Vodka, Gin, Rum, Tequila,
@@ -113,10 +117,17 @@ The COMPLETE statutory text is required. BOTH clauses must appear:
   Clause 2: "Consumption of alcoholic beverages impairs your ability to
              drive a car or operate machinery, and may cause health problems."
 
-  PASS: Both clauses are fully present (rotated, small print, or partial
-        legibility is acceptable IF the full text is discernible).
-  FAIL: Either clause is absent, truncated beyond recognition, or the warning
-        says only "Contains Sulfites" or references only one clause.
+  PASS: Both clauses are FULLY and COMPLETELY readable in the label image.
+    Both the pregnancy/birth defects clause AND the impairment/machinery clause
+    must be legible in their entirety.
+  FAIL: Either clause is absent, truncated, rotated to the point of being
+    unreadable, obscured, or cannot be confirmed as complete. "Contains Sulfites"
+    alone is always FAIL. If you cannot confirm both complete clauses are
+    present, mark FAIL.
+  CRITICAL: "GOVERNMENT WARNING: Contains Sulfites" is a sulfite declaration,
+    NOT the health warning — always FAIL.
+  CRITICAL: If the health warning text is rotated, sideways, or only partially
+    visible and you cannot read both full clauses — always FAIL.
 
   ⚠ NEVER mark health_warning REVIEW — it is always PASS or FAIL.
   ⚠ "Contains Sulfites" is a separate sulfite declaration, NOT the health warning.
