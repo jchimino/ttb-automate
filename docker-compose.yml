@@ -39,7 +39,6 @@ services:
       TEXT_MODEL: qwen2.5:7b
       OCR_HOST: http://ocr:8001
       DATABASE_URL: postgresql://ttb:ttb@postgres:5432/ttb
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       ollama-pull:
         condition: service_completed_successfully
@@ -79,6 +78,13 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   ollama-pull:
     build:
@@ -86,8 +92,6 @@ services:
       dockerfile: Dockerfile
     container_name: ttb-ollama-pull
     entrypoint: ["/pull-models.sh"]
-    environment:
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       ollama:
         condition: service_healthy
