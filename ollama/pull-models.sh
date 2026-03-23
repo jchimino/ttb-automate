@@ -1,19 +1,15 @@
 #!/bin/bash
-# pull-models.sh — detect hardware and pull the right Ollama models.
+# pull-models.sh — pull all required models unconditionally.
 #
-# GPU detected  -> pull qwen2.5:7b + llava:7b (~8.8 GB, vision strategy)
-# CPU only      -> pull qwen2.5:7b only (~4.4 GB, local reconcile)
+# Both models are always pulled regardless of hardware:
+#   llava:7b   — vision model (used when GPU is available via Ollama)
+#   qwen2.5:7b — text model (used as support/fallback)
+#
+# GPU detection is NOT done here because this container has no GPU passthrough.
+# The assess service detects GPU capability at runtime via the Ollama API.
 
 set -euo pipefail
 OLLAMA="http://ollama:11434"
-
-HAS_GPU=0
-if command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null; then
-  HAS_GPU=1
-  echo "[pull] NVIDIA GPU detected."
-else
-  echo "[pull] No GPU detected — CPU only (qwen2.5:7b reconcile strategy)."
-fi
 
 pull_model() {
   local name="$1"
@@ -30,10 +26,8 @@ pull_model() {
   fi
 }
 
+echo "[pull] Pulling all required models (llava:7b + qwen2.5:7b) ..."
+pull_model "llava:7b"
 pull_model "qwen2.5:7b"
-
-if [[ "$HAS_GPU" == "1" ]]; then
-  pull_model "llava:7b"
-fi
 
 echo "[pull] All models ready."
