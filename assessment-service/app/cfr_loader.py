@@ -215,17 +215,42 @@ async def _embed(text: str, client: httpx.AsyncClient) -> list[float] | None:
 
 
 def _pull_embed_model_sync() -> bool:
-    """Pull nomic-embed-text synchronously. Returns True if ready."""
+    """Pull nomic-embed-text synchronously by streaming the response.
+
+    The Ollama /api/pull endpoint streams NDJSON lines while downloading.
+    We must read and consume ALL lines until we see {"status":"success"}
+    (or the connection closes).  Simply opening the request without reading
+    leaves the download stalled.
+
+    Returns True if the final status line is 'success', False otherwise.
+    """
+    import urllib.request
     try:
-        import urllib.request
         req = urllib.request.Request(
             f"{OLLAMA_HOST}/api/pull",
-            data=json.dumps({"name": EMBED_MODEL}).encode(),
+            data=json.dumps({"name": EMBED_MODEL, "stream": True}).encode(),
+            headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            pass
-        return True
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            last_status = ""
+            for raw_line in resp:
+                line = raw_line.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    status = obj.get("status", "")
+                    if status:
+                        last_status = status
+                except json.JSONDecodeError:
+                    pass
+            if last_status == "success":
+                print(f"[cfr_loader] {EMBED_MODEL} pull complete.")
+                return True
+            else:
+                print(f"[cfr_loader] {EMBED_MODEL} pull ended with status: {last_status!r}")
+                return False
     except Exception as e:
         print(f"[cfr_loader] Could not pull {EMBED_MODEL}: {e}")
         return False
@@ -295,14 +320,14 @@ async def load_cfr_chunks(force: bool = False) -> bool:
     _pull_embed_model_sync()
 
     async with httpx.AsyncClient() as client:
-        # Verify embed model is responsive
-        for attempt in range(6):
+        # Verify embed model is responsive (12 attempts × 15 s = 3 min max)
+        for attempt in range(12):
             emb = await _embed("test", client)
             if emb and len(emb) == EMBED_DIM:
                 print(f"[cfr_loader] {EMBED_MODEL} ready (dim={len(emb)})")
                 break
-            print(f"[cfr_loader] Waiting for {EMBED_MODEL} ... attempt {attempt + 1}/6")
-            await asyncio.sleep(10)
+            print(f"[cfr_loader] Waiting for {EMBED_MODEL} ... attempt {attempt + 1}/12")
+            await asyncio.sleep(15)
         else:
             print(f"[cfr_loader] {EMBED_MODEL} not available — skipping RAG load (assess will run without RAG)")
             return False
