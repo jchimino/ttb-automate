@@ -76,15 +76,15 @@ async def _init_strategy():
 
     # ── Step 1: check for Anthropic API key first (highest priority) ─────────
       if ANTHROPIC_API_KEY:
-                STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
-                print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) — API key present, takes precedence")
-                print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
-                MODEL_READY = True
-                try:
-                              RAG_READY = await load_cfr_chunks(force=False)
-except Exception as e:
+          STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
+          print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) — API key present, takes precedence")
+          print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
+          MODEL_READY = True
+          try:
+            RAG_READY = await load_cfr_chunks(force=False)
+          except Exception as e:
             print(f"[startup] CFR RAG load failed (non-fatal): {e}")
-        return
+          return
 
     # ── Step 2: no API key — probe Ollama for the vision model (up to 5 min) ─
     vision_ready = False
