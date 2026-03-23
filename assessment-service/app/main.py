@@ -39,119 +39,80 @@ from cfr_loader import load_cfr_chunks, retrieve_relevant_chunks
 
 app = FastAPI(title="TTB Label Compliance API")
 
-OLLAMA_HOST  = os.getenv("OLLAMA_HOST",  "http://ollama:11434")
+# --- Env Config ---
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llava:7b")
-TEXT_MODEL   = os.getenv("TEXT_MODEL",   "qwen2.5:7b")
-OCR_HOST     = os.getenv("OCR_HOST",     "http://ocr:8001")
+TEXT_MODEL = os.getenv("TEXT_MODEL", "qwen2.5:7b")
+OCR_HOST = os.getenv("OCR_HOST", "http://ocr:8001")
 DATABASE_URL = os.getenv("DATABASE_URL")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL   = "claude-haiku-4-5"
+ANTHROPIC_MODEL = "claude-haiku-4-5"
 
-_VISION_MODEL_NAMES = (
-      "llava", "bakllava", "moondream", "vision",
-      "llama3.2-vision", "minicpm-v", "cogvlm", "instructblip",
-)
+_VISION_MODEL_NAMES = ("llava", "bakllava", "moondream", "vision", "llama3.2-vision")
 
-STRATEGY       = "unknown"
-ACTIVE_MODEL   = OLLAMA_MODEL
-MODEL_READY    = False
+STRATEGY = "unknown"
+ACTIVE_MODEL = OLLAMA_MODEL
+MODEL_READY = False
 USING_CLOUD_API = False
-RAG_READY      = False   # True once CFR chunks are loaded into pgvector
-
+RAG_READY = False
 
 def _is_vision_model(name: str) -> bool:
-      return any(v in name.lower() for v in _VISION_MODEL_NAMES)
+    return any(v in name.lower() for v in _VISION_MODEL_NAMES)
 
-
-# ── Startup ──────────────────────────────────────────────────────────────────
-#
-# IMPORTANT: detect_strategy runs as a background task (not inline in the
-# on_event handler) so FastAPI can start accepting connections — and /health
-# can respond with status="loading" — immediately.  Without this decoupling,
-# Docker's healthcheck times out while the app is still probing Ollama.
+# --- Startup Logic ---
 
 async def _init_strategy():
-      """Detect API key / GPU / model availability and warm up the active model."""
-      global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API, RAG_READY
+    global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API, RAG_READY
 
-    # ── Step 1: check for Anthropic API key first (highest priority) ─────────
-      if ANTHROPIC_API_KEY:
-          STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
-          print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) — API key present, takes precedence")
-          print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
-          MODEL_READY = True
-          try:
+    # 1. Check Anthropic First (Highest Priority)
+    if ANTHROPIC_API_KEY:
+        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
+        print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) - API key present.")
+        MODEL_READY = True
+        try:
             RAG_READY = await load_cfr_chunks(force=False)
-          except Exception as e:
+        except Exception as e:
             print(f"[startup] CFR RAG load failed (non-fatal): {e}")
-          return
+        return
 
-    # ── Step 2: no API key — probe Ollama for the vision model (up to 5 min) ─
+    # 2. Local Fallback - Probe Ollama
     vision_ready = False
     attempt = 0
-    print(f"[startup] No API key set. Probing Ollama for {OLLAMA_MODEL} ...")
-    while attempt < 30:   # 30 × 10 s = 5 min max
-              attempt += 1
-              try:
-                            async with httpx.AsyncClient(timeout=20.0) as client:
-                                              r = await client.get(f"{OLLAMA_HOST}/api/tags")
-                                              if r.is_success:
-                                                                    models = [m["name"] for m in r.json().get("models", [])]
-                                                                    base = OLLAMA_MODEL.split(":")[0].lower()
-                                                                    vision_ready = any(base in m.lower() for m in models)
-                                                                    if vision_ready:
-                                                                                              print(f"[startup] {OLLAMA_MODEL} found in Ollama model list.")
-                                                                                              break
-              except Exception:
-                            pass
-                        print(f"[startup] Waiting for {OLLAMA_MODEL} ... attempt {attempt}/30")
-        await asyncio.sleep(10)
-
-    # ── Step 3: choose local strategy ────────────────────────────────────────
-    if vision_ready and _is_vision_model(OLLAMA_MODEL):
-              STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "vision", OLLAMA_MODEL, False
-        print(f"[startup] Strategy: VISION ({OLLAMA_MODEL}) — llava reads images; OCR used as confirmation")
-else:
-        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", TEXT_MODEL, False
-        print(f"[startup] Strategy: RECONCILE via local Ollama ({TEXT_MODEL}) — no GPU, no API key")
-
-    print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
-
-    # ── Step 4: warm up the local Ollama model ───────────────────────────────
-    print(f"[startup] Warming up {ACTIVE_MODEL} ...")
-    warm_attempt = 0
-    while True:
-              warm_attempt += 1
+    while attempt < 30:
+        attempt += 1
         try:
-                      async with httpx.AsyncClient(timeout=60.0) as client:
-                                        r = await client.post(
-                                                              f"{OLLAMA_HOST}/api/generate",
-                                                              json={"model": ACTIVE_MODEL, "prompt": "hi", "stream": False,
-                                                                                              "options": {"num_predict": 1}},
-                                        )
-                                        if r.is_success:
-                                                              MODEL_READY = True
-                                                              print(f"[startup] {ACTIVE_MODEL} ready (warm-up attempt {warm_attempt})")
-                                                              break
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(f"{OLLAMA_HOST}/api/tags")
+                if r.is_success:
+                    models = [m["name"] for m in r.json().get("models", [])]
+                    vision_ready = any(OLLAMA_MODEL.split(":")[0].lower() in m.lower() for m in models)
+                    if vision_ready: break
         except Exception:
             pass
-        print(f"[startup] Warm-up attempt {warm_attempt} failed — retrying in 10 s ...")
         await asyncio.sleep(10)
 
-    # ── Step 5: load CFR corpus into pgvector for RAG ────────────────────────
-    try:
-              RAG_READY = await load_cfr_chunks(force=False)
-except Exception as e:
-        print(f"[startup] CFR RAG load failed (non-fatal): {e}")
+    # 3. Finalize Local Strategy
+    if vision_ready and _is_vision_model(OLLAMA_MODEL):
+        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "vision", OLLAMA_MODEL, False
+    else:
+        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", TEXT_MODEL, False
 
+    # 4. Warm up Local Model
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            await client.post(f"{OLLAMA_HOST}/api/generate", 
+                             json={"model": ACTIVE_MODEL, "prompt": "hi", "stream": False})
+            MODEL_READY = True
+    except Exception as e:
+        print(f"[startup] Warm-up failed: {e}")
+
+    try:
+        RAG_READY = await load_cfr_chunks(force=False)
+    except Exception as e:
+        print(f"[startup] CFR RAG load failed: {e}")
 
 @app.on_event("startup")
 async def detect_strategy():
-      """
-          Fire _init_strategy() as a background task so the HTTP server starts
-              immediately and /health can respond (status='loading') while the slow
-                  Ollama probe and model warm-up run in the background.
-                      """
     asyncio.create_task(_init_strategy())
 
 
