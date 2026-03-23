@@ -67,18 +67,21 @@ def _is_vision_model(name: str) -> bool:
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def detect_strategy():
-    global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API
+#
+# IMPORTANT: detect_strategy runs as a background task (not inline in the
+# on_event handler) so FastAPI can start accepting connections — and /health
+# can respond with status="loading" — immediately. Without this decoupling,
+# Docker's healthcheck times out while the app is still probing Ollama.
 
-    # Check whether llava:7b is available in Ollama (implies GPU is being used).
-    # Uses /api/tags (lists downloaded models) rather than /api/show so we don't
-    # need the model to be loaded yet — just present on disk.
+async def _init_strategy():
+    """Detect GPU/model availability and warm up the active model."""
+    global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API, RAG_READY
+
+    # ── Step 1: probe Ollama for the vision model (up to 5 min) ──────────────
     vision_ready = False
     attempt = 0
-
     print(f"[startup] Probing Ollama for {OLLAMA_MODEL} ...")
-    while attempt < 30:  # up to 5 minutes
+    while attempt < 30:   # 30 × 10 s = 5 min max
         attempt += 1
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
@@ -95,20 +98,20 @@ async def detect_strategy():
         print(f"[startup] Waiting for {OLLAMA_MODEL} ... attempt {attempt}/30")
         await asyncio.sleep(10)
 
-    # Priority: vision > anthropic > local reconcile
+    # ── Step 2: choose strategy ───────────────────────────────────────────────
     if vision_ready and _is_vision_model(OLLAMA_MODEL):
         STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "vision", OLLAMA_MODEL, False
         print(f"[startup] Strategy: VISION ({OLLAMA_MODEL}) — llava reads images; OCR used as confirmation")
     elif ANTHROPIC_API_KEY:
         STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
-        print(f"[startup] Strategy: RECONCILE via Anthropic ({ANTHROPIC_MODEL}) — no GPU, API key present")
+        print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) — no GPU, API key present")
     else:
         STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", TEXT_MODEL, False
         print(f"[startup] Strategy: RECONCILE via local Ollama ({TEXT_MODEL}) — no GPU, no API key")
 
     print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
 
-    global RAG_READY
+    # ── Step 3: cloud path — mark ready immediately, skip warm-up ────────────
     if USING_CLOUD_API:
         MODEL_READY = True
         try:
@@ -117,6 +120,7 @@ async def detect_strategy():
             print(f"[startup] CFR RAG load failed (non-fatal): {e}")
         return
 
+    # ── Step 4: warm up the local Ollama model ────────────────────────────────
     print(f"[startup] Warming up {ACTIVE_MODEL} ...")
     warm_attempt = 0
     while True:
@@ -125,7 +129,8 @@ async def detect_strategy():
             async with httpx.AsyncClient(timeout=60.0) as client:
                 r = await client.post(
                     f"{OLLAMA_HOST}/api/generate",
-                    json={"model": ACTIVE_MODEL, "prompt": "hi", "stream": False, "options": {"num_predict": 1}},
+                    json={"model": ACTIVE_MODEL, "prompt": "hi", "stream": False,
+                          "options": {"num_predict": 1}},
                 )
                 if r.is_success:
                     MODEL_READY = True
@@ -136,11 +141,21 @@ async def detect_strategy():
         print(f"[startup] Warm-up attempt {warm_attempt} failed — retrying in 10 s ...")
         await asyncio.sleep(10)
 
-    # Load CFR corpus into pgvector for RAG (runs after model is warm)
+    # ── Step 5: load CFR corpus into pgvector for RAG ─────────────────────────
     try:
         RAG_READY = await load_cfr_chunks(force=False)
     except Exception as e:
         print(f"[startup] CFR RAG load failed (non-fatal): {e}")
+
+
+@app.on_event("startup")
+async def detect_strategy():
+    """
+    Fire _init_strategy() as a background task so the HTTP server starts
+    immediately and /health can respond (status='loading') while the slow
+    Ollama probe and model warm-up run in the background.
+    """
+    asyncio.create_task(_init_strategy())
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
