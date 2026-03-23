@@ -1,3 +1,18 @@
+"""
+TTB Assessment Orchestrator
+============================
+Pure local-LLM version — no cloud API, no RAG.
+
+Strategy priority (evaluated at startup):
+  1. VISION   — llava:7b available in Ollama AND GPU detected
+                 llava reads the label image directly.
+                                Tesseract OCR runs in parallel as supplementary confirmation text.
+                                  2. RECONCILE — llava unavailable or no GPU.
+                                                 OCR text sent to local qwen2.5:7b via Ollama.
+
+                                                 Both paths use the same strict prompt and post_process() enforcement.
+                                                 """
+
 import base64
 import io
 import json
@@ -16,129 +31,338 @@ from fastapi.responses import JSONResponse
 
 from prompt import build_prompt_vision, build_prompt_ocr
 from models import AssessmentResult
-from cfr_loader import load_cfr_chunks, retrieve_relevant_chunks
 
 app = FastAPI(title="TTB Label Compliance API")
 
-# --- Configuration ---
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llava:7b")
-TEXT_MODEL = os.getenv("TEXT_MODEL", "qwen2.5:7b")
-OCR_HOST = os.getenv("OCR_HOST", "http://ocr:8001")
+# ── Configuration ─────────────────────────────────────────────────────────────
+OLLAMA_HOST  = os.getenv("OLLAMA_HOST",  "http://ollama:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llava:7b")   # vision path
+TEXT_MODEL   = os.getenv("TEXT_MODEL",   "qwen2.5:7b") # reconcile path
+OCR_HOST     = os.getenv("OCR_HOST",     "http://ocr:8001")
 DATABASE_URL = os.getenv("DATABASE_URL")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-ANTHROPIC_MODEL = "claude-3-5-sonnet-latest" # Updated to current latest
 
-_VISION_MODEL_NAMES = ("llava", "bakllava", "moondream", "vision", "llama3.2-vision")
+_VISION_MODEL_NAMES = (
+        "llava", "bakllava", "moondream", "vision",
+        "llama3.2-vision", "minicpm-v", "cogvlm", "instructblip",
+)
 
-STRATEGY = "unknown"
+# Set at startup
+STRATEGY     = "unknown"
 ACTIVE_MODEL = OLLAMA_MODEL
-MODEL_READY = False
-USING_CLOUD_API = False
-RAG_READY = False
+MODEL_READY  = False
+
 
 def _is_vision_model(name: str) -> bool:
-    return any(v in name.lower() for v in _VISION_MODEL_NAMES)
+        return any(v in name.lower() for v in _VISION_MODEL_NAMES)
 
-# --- Startup & Strategy Detection ---
+
+# ── Startup: detect strategy ──────────────────────────────────────────────────
+#
+# _init_strategy() runs as a background task so FastAPI starts immediately
+# and /health can respond status="loading" while Ollama is still warming up.
 
 async def _init_strategy():
-    """Detect API key / GPU availability and warm up the model."""
-    global STRATEGY, ACTIVE_MODEL, MODEL_READY, USING_CLOUD_API, RAG_READY
+        """Probe Ollama for the vision model, choose strategy, warm up."""
+        global STRATEGY, ACTIVE_MODEL, MODEL_READY
 
-    # 1. Anthropic Priority (Saves your GTX 1660 VRAM)
-    if ANTHROPIC_API_KEY:
-        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", ANTHROPIC_MODEL, True
-        print(f"[startup] Strategy: ANTHROPIC ({ANTHROPIC_MODEL}) - API key found.")
-        MODEL_READY = True
-        try:
-            RAG_READY = await load_cfr_chunks(force=False)
-        except Exception as e:
-            print(f"[startup] CFR RAG load failed (non-fatal): {e}")
-        return
+    # ── Step 1: wait for Ollama and check whether llava is available ──────
+        vision_ready = False
+        attempt = 0
+        print(f"[startup] Probing Ollama for {OLLAMA_MODEL} ...")
+        while attempt < 30:   # 30 × 10 s = 5 min max
+            attempt += 1
+                    try:
+                                    async with httpx.AsyncClient(timeout=20.0) as client:
+                                                        r = await client.get(f"{OLLAMA_HOST}/api/tags")
+                                                        if r.is_success:
+                                                                                models = [m["name"] for m in r.json().get("models", [])]
+                                                                                base = OLLAMA_MODEL.split(":")[0].lower()
+                                                                                vision_ready = any(base in m.lower() for m in models)
+                                                                                if vision_ready:
+                                                                                                            print(f"[startup] {OLLAMA_MODEL} found in Ollama model list.")
+                                                                                                            break
+                    except Exception:
+                                    pass
+                                print(f"[startup] Waiting for {OLLAMA_MODEL} ... attempt {attempt}/30")
+                    await asyncio.sleep(10)
 
-    # 2. Local Fallback - Probe Ollama
-    vision_ready = False
-    attempt = 0
-    print(f"[startup] No API key. Probing Ollama for {OLLAMA_MODEL}...")
-    while attempt < 30:
-        attempt += 1
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get(f"{OLLAMA_HOST}/api/tags")
-                if r.is_success:
-                    models = [m["name"] for m in r.json().get("models", [])]
-                    vision_ready = any(OLLAMA_MODEL.split(":")[0].lower() in m.lower() for m in models)
-                    if vision_ready: break
-        except Exception:
-            pass
+    # ── Step 2: GPU check — probe /api/show for accelerator backend ───────
+        has_gpu = False
+        if vision_ready:
+                    try:
+                                    async with httpx.AsyncClient(timeout=15.0) as client:
+                                                        r = await client.post(
+                                                                                f"{OLLAMA_HOST}/api/show",
+                                                                                json={"name": OLLAMA_MODEL},
+                                                        )
+                                                        info = str(r.json()).lower()
+                                                        has_gpu = "cuda" in info or "metal" in info or "rocm" in info
+                                                        print(f"[startup] GPU probe → has_gpu={has_gpu}")
+                    except Exception as e:
+                                    print(f"[startup] GPU probe failed (assuming CPU): {e}")
+
+                # ── Step 3: choose strategy ───────────────────────────────────────────
+                if vision_ready and has_gpu and _is_vision_model(OLLAMA_MODEL):
+                            STRATEGY     = "vision"
+                            ACTIVE_MODEL = OLLAMA_MODEL
+                            print(f"[startup] Strategy: VISION ({OLLAMA_MODEL}) — GPU confirmed, llava reads images directly")
+else:
+        STRATEGY     = "reconcile"
+        ACTIVE_MODEL = TEXT_MODEL
+        reason = "no GPU" if (vision_ready and not has_gpu) else "llava not available"
+        print(f"[startup] Strategy: RECONCILE ({TEXT_MODEL}) — {reason}, using OCR + text LLM")
+
+    # ── Step 4: warm up the active model ─────────────────────────────────
+    print(f"[startup] Warming up {ACTIVE_MODEL} ...")
+    warm_attempt = 0
+    while True:
+                warm_attempt += 1
+                try:
+                                async with httpx.AsyncClient(timeout=60.0) as client:
+                                                    r = await client.post(
+                                                                            f"{OLLAMA_HOST}/api/generate",
+                                                                            json={
+                                                                                                        "model": ACTIVE_MODEL,
+                                                                                                        "prompt": "hi",
+                                                                                                        "stream": False,
+                                                                                                        "options": {"num_predict": 1},
+                                                                                },
+                                                    )
+                                                    if r.is_success:
+                                                                            MODEL_READY = True
+                                                                            print(f"[startup] {ACTIVE_MODEL} ready (warm-up attempt {warm_attempt}).")
+                                                                            break
+                except Exception as e:
+                                pass
+                            print(f"[startup] Warm-up attempt {warm_attempt} failed — retrying in 10 s ...")
         await asyncio.sleep(10)
 
-    # 3. Determine Local Strategy
-    if vision_ready and _is_vision_model(OLLAMA_MODEL):
-        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "vision", OLLAMA_MODEL, False
-    else:
-        STRATEGY, ACTIVE_MODEL, USING_CLOUD_API = "reconcile", TEXT_MODEL, False
-
-    # 4. Warm up
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            await client.post(f"{OLLAMA_HOST}/api/generate", 
-                             json={"model": ACTIVE_MODEL, "prompt": "hi", "stream": False})
-            MODEL_READY = True
-    except Exception as e:
-        print(f"[startup] Warm-up failed: {e}")
 
 @app.on_event("startup")
 async def detect_strategy():
-    asyncio.create_task(_init_strategy())
+        asyncio.create_task(_init_strategy())
 
-# --- Database & Helpers ---
 
+# ── Database ──────────────────────────────────────────────────────────────────
 def log_decision(result: AssessmentResult, strategy: str, raw: str):
-    try:
-        if not DATABASE_URL: return
-        conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO assessments (submission_id, decision, brand_name, model, strategy, reasoning, raw_response, assessed_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        """, (result.submission_id, result.decision, result.brand_name, result.model, strategy, result.reasoning, raw, datetime.utcnow()))
+        try:
+                    if not DATABASE_URL:
+                                    return
+                                conn = psycopg2.connect(DATABASE_URL)
+        cur  = conn.cursor()
+        cur.execute(
+                        """
+                                    INSERT INTO assessments
+                                                    (submission_id, decision, brand_name, model, strategy,
+                                                                     fields_json, reasoning, raw_response, assessed_at)
+                                                                                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                                                                             """,
+                        (
+                                            result.submission_id,
+                                            result.decision,
+                                            result.brand_name,
+                                            result.model,
+                                            strategy,
+                                            json.dumps([f.dict() for f in result.fields]),
+                                            result.reasoning,
+                                            raw,
+                                            datetime.utcnow(),
+                        ),
+        )
         conn.commit()
         cur.close()
         conn.close()
-    except Exception as e:
+except Exception as e:
         print(f"[audit] DB write failed: {e}")
 
-async def call_anthropic(prompt: str) -> str:
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def _resize_image(img_bytes: bytes, max_px: int = 512) -> bytes:
+        """Resize so longest side <= max_px. Returns JPEG bytes."""
+    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+    w, h = img.size
+    if max(w, h) > max_px:
+                scale = max_px / max(w, h)
+        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
+
+
+async def call_ollama(prompt: str, images: list[bytes], model: str) -> str:
+        """
+            Call Ollama. Vision models receive resized images; text-only models do not.
+                num_ctx capped at 2048 to keep VRAM pressure manageable on consumer GPUs.
+                    """
+    is_vision = _is_vision_model(model)
+    resized   = [_resize_image(img) for img in images] if (images and is_vision) else []
+    encoded   = [base64.standard_b64encode(img).decode() for img in resized]
+
+    payload: dict = {
+                "model":  model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.1, "num_predict": 800, "num_ctx": 2048},
+    }
+    if encoded:
+                payload["images"] = encoded
+
+    async with httpx.AsyncClient(timeout=300.0) as client:
+                r = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
+    if not r.is_success:
+                raise RuntimeError(f"Ollama {r.status_code}: {r.text[:300]}")
+    data = r.json()
+    if "error" in data:
+                raise RuntimeError(f"Ollama error: {data['error']}")
+    return data.get("response") or ""
+
+
+async def call_ocr(images: list[bytes]) -> dict:
+        files = [
+                    ("images", (f"img_{i}.png", img, "image/png"))
+                    for i, img in enumerate(images)
+        ]
     async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": ANTHROPIC_MODEL,
-                "max_tokens": 1024,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-        )
+                r = await client.post(f"{OCR_HOST}/extract", files=files)
         r.raise_for_status()
-        return r.json()["content"][0]["text"]
+    return r.json()  # {"pages": [{"index": 0, "text": "..."}, ...]}
 
-# --- API Endpoints ---
 
+# ── Strategies ────────────────────────────────────────────────────────────────
+async def run_vision(
+        label_bytes: list[bytes],
+        form_bytes: Optional[bytes],
+        submission_id: str,
+) -> tuple[AssessmentResult, str]:
+        """
+            Primary path: llava:7b reads the label image directly (GPU required).
+                Tesseract OCR runs in parallel and its output is appended as supplementary
+                    confirmation text. llava's visual interpretation takes precedence.
+                        post_process() enforces hard compliance rules after the LLM responds.
+                            """
+    all_images = ([form_bytes] if form_bytes else []) + label_bytes
+
+    # OCR as supplementary confirmation (non-fatal if unavailable)
+    ocr_text = ""
+    try:
+                ocr_data = await asyncio.wait_for(call_ocr(label_bytes), timeout=30.0)
+        ocr_text = "\n\n".join(
+                        f"--- Image {p['index'] + 1} ---\n{p['text']}"
+                        for p in ocr_data.get("pages", [])
+        )
+        print(f"[vision] OCR confirmation available — {len(ocr_text)} chars")
+except Exception as e:
+        print(f"[vision] OCR confirmation unavailable (non-fatal): {e}")
+
+    prompt = build_prompt_vision(
+                n_labels=len(label_bytes),
+                has_form=form_bytes is not None,
+                submission_id=submission_id,
+                ocr_supplement=ocr_text,
+    )
+    raw    = await call_ollama(prompt, all_images, model=OLLAMA_MODEL)
+    result = AssessmentResult.from_llm_response(raw, submission_id, OLLAMA_MODEL).post_process()
+    return result, raw
+
+
+async def run_reconcile(
+        label_bytes: list[bytes],
+        form_bytes: Optional[bytes],
+        submission_id: str,
+) -> tuple[AssessmentResult, str]:
+        """
+            Fallback path (CPU / no llava): OCR extracts text, then local qwen2.5:7b
+                evaluates compliance against the full TTB prompt.
+                    post_process() enforces hard compliance rules after the LLM responds.
+                        """
+    all_images = ([form_bytes] if form_bytes else []) + label_bytes
+
+    ocr_data = await call_ocr(all_images)
+    ocr_text = "\n\n".join(
+                f"--- Image {p['index'] + 1} ---\n{p['text']}"
+                for p in ocr_data.get("pages", [])
+    )
+    print(f"[reconcile] OCR complete — {len(ocr_text)} chars extracted")
+
+    prompt = build_prompt_ocr(
+                ocr_text=ocr_text,
+                n_labels=len(label_bytes),
+                has_form=form_bytes is not None,
+                submission_id=submission_id,
+    )
+    print(f"[reconcile] Sending to {TEXT_MODEL} ...")
+    raw    = await call_ollama(prompt, all_images, model=TEXT_MODEL)
+    result = AssessmentResult.from_llm_response(raw, submission_id, TEXT_MODEL).post_process()
+
+    # If OCR found nothing and the LLM was overly optimistic — flag for review
+    if not ocr_text.strip() and result.decision == "APPROVE":
+                result.decision  = "REVIEW"
+        result.reasoning = (
+                        "OCR extracted no text — visual-only assessment, recommend human verification. "
+                        + (result.reasoning or "")
+        )
+    return result, raw
+
+
+# ── Assessment endpoint ───────────────────────────────────────────────────────
 @app.post("/assess")
-async def assess(label_images: list[UploadFile] = File(...), submission_id: Optional[str] = Form(None)):
-    if not submission_id:
-        submission_id = f"SUB-{uuid.uuid4().hex[:6].upper()}"
-    
-    # Logic to route to Anthropic vs Local based on STRATEGY variable
-    # ... (omitted for brevity, keeping your existing run_vision/run_reconcile logic)
-    return {"status": "processing", "id": submission_id}
+async def assess(
+        label_images: list[UploadFile] = File(...),
+        form_image:   Optional[UploadFile] = File(None),
+        submission_id: Optional[str] = Form(None),
+):
+        if not submission_id:
+                    submission_id = (
+                        f"SUB-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
+                        f"-{uuid.uuid4().hex[:6].upper()}"
+        )
 
+    label_bytes = [await img.read() for img in label_images]
+    form_bytes  = await form_image.read() if form_image else None
+
+    try:
+                run = run_vision if STRATEGY == "vision" else run_reconcile
+        result, raw = await run(label_bytes, form_bytes, submission_id)
+except Exception as exc:
+        print(
+                        f"[assess] {STRATEGY} strategy failed: {exc!r}\n"
+                        f"{traceback.format_exc()} — falling back to reconcile"
+        )
+        try:
+                        result, raw = await run_reconcile(label_bytes, form_bytes, submission_id)
+        except Exception as exc2:
+            from fastapi import HTTPException
+            raise HTTPException(
+                                status_code=500,
+                                detail=f"Assessment failed: {type(exc2).__name__}: {exc2}",
+            ) from exc2
+
+    log_decision(result, STRATEGY, raw)
+
+    return JSONResponse(content={
+                **result.dict(),
+                "strategy":     STRATEGY,
+                "active_model": ACTIVE_MODEL,
+    })
+
+
+# ── Health ─────────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {"status": "ok" if MODEL_READY else "loading", "strategy": STRATEGY, "model": ACTIVE_MODEL}
+        if not MODEL_READY:
+                    return JSONResponse(
+                        status_code=503,
+                        content={
+                                            "status":       "loading",
+                                            "strategy":     STRATEGY,
+                                            "active_model": ACTIVE_MODEL,
+                        },
+        )
+    return {
+                "status":       "ok",
+                "strategy":     STRATEGY,
+                "active_model": ACTIVE_MODEL,
+                "vision_model": OLLAMA_MODEL,
+                "text_model":   TEXT_MODEL,
+                "ollama":       OLLAMA_HOST,
+    }
