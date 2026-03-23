@@ -107,8 +107,13 @@ Specific guidance:
 """
 
 
-def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str) -> str:
-    """GPU path — LLM reads the images directly."""
+def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str, ocr_supplement: str = "") -> str:
+    """
+    Primary path — llava:7b reads the label images directly.
+    If OCR text is provided as a supplement, it is appended as confirmatory
+    context so llava can cross-check its visual read against extracted text.
+    llava's visual interpretation always takes precedence.
+    """
     prompt = "You are a TTB (Alcohol and Tobacco Tax and Trade Bureau) compliance specialist.\n\n"
     prompt += _TTB_RULES
 
@@ -119,6 +124,16 @@ def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str) -> st
         )
     else:
         prompt += f"\nYou are shown {n_labels} label image(s). No application form was provided — assess against TTB requirements only."
+
+    if ocr_supplement.strip():
+        prompt += f"""
+
+--- SUPPLEMENTARY OCR TEXT (use to confirm your visual read) ---
+{ocr_supplement}
+--- END OCR TEXT ---
+Note: OCR is provided as a cross-check only. Your primary source is the image.
+If OCR and visual read conflict, trust your visual interpretation of the image.
+"""
 
     prompt += f"\nSubmission ID: {submission_id}\n"
     prompt += _FIELD_SCHEMA
