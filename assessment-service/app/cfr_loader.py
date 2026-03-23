@@ -386,14 +386,33 @@ async def load_cfr_chunks(force: bool = False) -> bool:
     _pull_embed_model_sync()
 
     async with httpx.AsyncClient() as client:
-        # Verify embed model is responsive (12 attempts × 15 s = 3 min max)
-        for attempt in range(12):
+        # Warm-up: force Ollama to load nomic-embed-text into memory.
+        # Pulling only downloads; loading requires a generate call first.
+        print(f"[cfr_loader] Warming up {EMBED_MODEL} ...")
+        for warmup in range(10):
+            try:
+                r = await client.post(
+                    f"{OLLAMA_HOST}/api/generate",
+                    json={"model": EMBED_MODEL, "prompt": "test", "stream": False,
+                          "options": {"num_predict": 1}},
+                    timeout=60.0,
+                )
+                if r.is_success:
+                    print(f"[cfr_loader] {EMBED_MODEL} loaded (warmup attempt {warmup + 1})")
+                    break
+            except Exception:
+                pass
+            print(f"[cfr_loader] Warm-up attempt {warmup + 1}/10 failed — retrying in 5 s ...")
+            await asyncio.sleep(5)
+
+        # Verify embed endpoint is now responsive (6 attempts x 5 s max)
+        for attempt in range(6):
             emb = await _embed("test", client)
             if emb and len(emb) == EMBED_DIM:
-                print(f"[cfr_loader] {EMBED_MODEL} ready (dim={len(emb)})")
+                print(f"[cfr_loader] {EMBED_MODEL} embed ready (dim={len(emb)})")
                 break
-            print(f"[cfr_loader] Waiting for {EMBED_MODEL} ... attempt {attempt + 1}/12")
-            await asyncio.sleep(15)
+            print(f"[cfr_loader] Waiting for embed ... attempt {attempt + 1}/6")
+            await asyncio.sleep(5)
         else:
             print(f"[cfr_loader] {EMBED_MODEL} not available — skipping RAG load (assess will run without RAG)")
             return False
