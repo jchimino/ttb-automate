@@ -7,8 +7,25 @@ import os
 
 from config import SUPABASE_URL, SUPABASE_ANON_KEY
 
-templates_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates'))
-templates = Jinja2Templates(directory=templates_dir)
+# Resolve the templates directory — try multiple candidate paths so the app
+# works whether templates are copied into the image or bind-mounted at runtime.
+def _find_templates_dir() -> str:
+    candidates = [
+        # Relative to this file (routers/ → ../templates)
+        os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'templates')),
+        # Absolute container path used by docker-compose bind-mount
+        '/app/templates',
+        # CWD-relative fallback
+        os.path.join(os.getcwd(), 'templates'),
+    ]
+    for path in candidates:
+        if os.path.isdir(path) and os.path.isfile(os.path.join(path, 'landing.html')):
+            return path
+    # Last resort: return the first candidate and let Jinja2 report a clear error
+    return candidates[0]
+
+_templates_dir = _find_templates_dir()
+templates = Jinja2Templates(directory=_templates_dir)
 
 router = APIRouter()
 
