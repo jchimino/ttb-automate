@@ -38,6 +38,7 @@ from fastapi.responses import JSONResponse
 
 from prompt import build_prompt_vision, build_prompt_ocr
 from models import AssessmentResult
+from cfr_loader import load_cfr_chunks, retrieve_relevant_chunks
 
 app = FastAPI(title="TTB Label Compliance API")
 
@@ -58,6 +59,7 @@ STRATEGY        = "unknown"
 ACTIVE_MODEL    = OLLAMA_MODEL
 MODEL_READY     = False
 USING_CLOUD_API = False
+RAG_READY       = False   # True once CFR chunks are loaded into pgvector
 
 
 def _is_vision_model(name: str) -> bool:
@@ -106,8 +108,13 @@ async def detect_strategy():
 
     print(f"[startup] Active model: {ACTIVE_MODEL} | Cloud: {USING_CLOUD_API}")
 
+    global RAG_READY
     if USING_CLOUD_API:
         MODEL_READY = True
+        try:
+            RAG_READY = await load_cfr_chunks(force=False)
+        except Exception as e:
+            print(f"[startup] CFR RAG load failed (non-fatal): {e}")
         return
 
     print(f"[startup] Warming up {ACTIVE_MODEL} ...")
@@ -128,6 +135,12 @@ async def detect_strategy():
             pass
         print(f"[startup] Warm-up attempt {warm_attempt} failed — retrying in 10 s ...")
         await asyncio.sleep(10)
+
+    # Load CFR corpus into pgvector for RAG (runs after model is warm)
+    try:
+        RAG_READY = await load_cfr_chunks(force=False)
+    except Exception as e:
+        print(f"[startup] CFR RAG load failed (non-fatal): {e}")
 
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -247,6 +260,17 @@ async def run_vision(label_bytes, form_bytes, submission_id):
         print(f"[vision] OCR confirmation available — {len(ocr_text)} chars")
     except Exception as e:
         print(f"[vision] OCR confirmation unavailable (non-fatal): {e}")
+
+    # RAG: retrieve relevant CFR sections for this submission
+    rag_context = ""
+    if RAG_READY:
+        rag_chunks = await retrieve_relevant_chunks(
+            query="label compliance class type health warning government",
+            top_k=4,
+        )
+        rag_context = _format_rag_context(rag_chunks)
+        if rag_context:
+            print(f"[vision] RAG: injected {len(rag_chunks)} CFR chunks into prompt")
 
     prompt = build_prompt_vision(
         n_labels=len(label_bytes),
