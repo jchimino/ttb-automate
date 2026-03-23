@@ -40,9 +40,9 @@ async def startup_banner():
     \033[1;36m➜  http://localhost:8004\033[0m
 
   Demo credentials (see README for full list):
-    Industry:  industrytest@gmail.com / Password1
-    Staff:     sam@treasury.gov / Password1
-    Admin:     admin@ttb.gov / Password1
+    Industry:  user45@gmail.com / Password1
+    Staff:     John@ttb.gov / Password1
+    Admin:     admin47@treasury.gov / Password1
 
   \033[2mPress Ctrl+C to stop\033[0m
 """
