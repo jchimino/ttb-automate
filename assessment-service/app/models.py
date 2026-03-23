@@ -37,6 +37,48 @@ _HW_FALSE_POSITIVES = [
 ]
 
 
+
+def _extract_json(raw: str) -> str:
+    """
+    Robustly extract a valid JSON object from raw LLM output.
+    Handles: markdown fences, preamble text, invalid escapes,
+    JS comments, trailing commas -- all common llava/qwen quirks.
+    """
+    text = raw.strip()
+    # 1. Strip markdown code fences
+    text = re.sub(r"^`{1,3}(?:json)?\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"`{1,3}\s*$", "", text, flags=re.MULTILINE)
+    text = text.strip()
+    # 2. Extract outermost { ... } block
+    b0 = text.find("{")
+    b1 = text.rfind("}")
+    if b0 != -1 and b1 > b0:
+        text = text[b0:b1+1]
+    # 3. Remove JS single-line comments
+    text = re.sub(r"//[^\n]*", "", text)
+    # 4. Remove trailing commas before } or ]
+    text = re.sub(r",\s*([}\\]])", r"\1", text)
+    # 5. Fix invalid JSON escape sequences
+    #    Valid: \" \\ \/ \b \f \n \r \t \uXXXX
+    #    Everything else: drop the backslash
+    valid_esc = set('"\\/bfnrtu')
+    result = []
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if c == "\\" and i + 1 < len(text):
+            nxt = text[i+1]
+            if nxt in valid_esc:
+                result.append(c)
+                result.append(nxt)
+            else:
+                result.append(nxt)  # drop the backslash
+            i += 2
+        else:
+            result.append(c)
+            i += 1
+    return "".join(result)
+
 class FieldResult(BaseModel):
     name: str
     status: str                   # PASS | REVIEW | FAIL
@@ -57,10 +99,9 @@ class AssessmentResult(BaseModel):
     def from_llm_response(
         cls, raw: str, submission_id: str, model: str
     ) -> "AssessmentResult":
+        """Parse LLM response with robust JSON extraction."""
         try:
-            text = raw.strip()
-            text = re.sub(r"^```(?:json)?\s*", "", text)
-            text = re.sub(r"\s*```$", "", text)
+            text = _extract_json(raw)
             data = json.loads(text)
             return cls(
                 submission_id = submission_id,
@@ -75,14 +116,10 @@ class AssessmentResult(BaseModel):
                 submission_id = submission_id,
                 decision      = "REVIEW",
                 brand_name    = None,
-                reasoning     = (
-                    f"Response could not be parsed -- human review required. "
-                    f"Error: {e}"
-                ),
+                reasoning     = f"Response could not be parsed -- human review required. Error: {e}",
                 fields        = [],
                 model         = model,
             )
-
     def post_process(self) -> "AssessmentResult":
         """
         Enforce hard compliance rules after the LLM responds.
