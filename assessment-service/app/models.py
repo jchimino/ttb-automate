@@ -12,10 +12,10 @@ the prompt rules (e.g. llava passing "Contains Sulfites" as the health
 warning). These rules are binary and deterministic:
 
   - health_warning PASS requires both statutory clauses in the found text.
-    If either clause is absent, status is forced to FAIL and decision to DENY.
+      If either clause is absent, status is forced to FAIL and decision to DENY.
   - Any field with status FAIL forces the overall decision to DENY.
   - "Contains Sulfites" alone (without the Surgeon General clause) is always
-    a health_warning FAIL regardless of what the LLM returned.
+      a health_warning FAIL regardless of what the LLM returned.
 """
 import json
 import re
@@ -25,8 +25,8 @@ from pydantic import BaseModel
 
 # -- Statutory health warning clauses (27 CFR Part 16) ----------------------
 # Both must be present (case-insensitive substring match) for PASS.
-_HW_CLAUSE_1 = "surgeon general"       # pregnancy / birth defects
-_HW_CLAUSE_2 = "impairs your ability"  # driving / machinery
+_HW_CLAUSE_1 = "surgeon general"      # pregnancy / birth defects
+_HW_CLAUSE_2 = "impairs your ability" # driving / machinery
 
 # Phrases that are definitively NOT the health warning.
 _HW_FALSE_POSITIVES = [
@@ -37,30 +37,84 @@ _HW_FALSE_POSITIVES = [
 ]
 
 
+def _repair_json(text: str) -> str:
+    """
+    Aggressive JSON repair for common LLM output quirks.
+    Applied after basic cleanup in _extract_json.
+    Handles:
+      - Missing commas between object fields
+      - Missing commas between array items
+      - Python True/False/None -> JSON true/false/null
+      - Unescaped newlines/tabs inside string values
+    """
+    # Python literals -> JSON
+    text = re.sub(r'\bTrue\b', 'true', text)
+    text = re.sub(r'\bFalse\b', 'false', text)
+    text = re.sub(r'\bNone\b', 'null', text)
+
+    # Missing comma: closing quote then whitespace/newline then opening quote
+    # before a colon (i.e. next key).  Pattern: "  \n  "key":
+    text = re.sub(r'(")(\s*\n\s*)("(?=[^:,}\]]*"\s*:))', r'\1,\2\3', text)
+
+    # Missing comma between array items: } newline {
+    text = re.sub(r'(})\s*\n\s*({)', r'\1,\2', text)
+
+    # Remove unescaped literal newlines/tabs inside string values
+    def fix_string_internals(s):
+        result = []
+        in_str = False
+        esc = False
+        for ch in s:
+            if esc:
+                result.append(ch)
+                esc = False
+            elif ch == '\\':
+                result.append(ch)
+                esc = True
+            elif ch == '"':
+                result.append(ch)
+                in_str = not in_str
+            elif in_str and ch == '\n':
+                result.append('\\n')
+            elif in_str and ch == '\t':
+                result.append('\\t')
+            else:
+                result.append(ch)
+        return ''.join(result)
+
+    text = fix_string_internals(text)
+    return text
+
 
 def _extract_json(raw: str) -> str:
     """
     Robustly extract a valid JSON object from raw LLM output.
-    Handles: markdown fences, preamble text, invalid escapes,
-    JS comments, trailing commas -- all common llava/qwen quirks.
+    Handles: markdown fences, preamble text, invalid escapes, JS comments,
+    trailing commas, missing commas, Python literals -- all common
+    llava/qwen quirks.
     """
     text = raw.strip()
+
     # 1. Strip markdown code fences
     text = re.sub(r"^`{1,3}(?:json)?\s*", "", text, flags=re.MULTILINE)
     text = re.sub(r"`{1,3}\s*$", "", text, flags=re.MULTILINE)
     text = text.strip()
+
     # 2. Extract outermost { ... } block
     b0 = text.find("{")
     b1 = text.rfind("}")
     if b0 != -1 and b1 > b0:
         text = text[b0:b1+1]
+
     # 3. Remove JS single-line comments
     text = re.sub(r"//[^\n]*", "", text)
+
     # 4. Remove trailing commas before } or ]
-    text = re.sub(r",\s*([}\\]])", r"\1", text)
+    text = re.sub(r",\s*([}\]])", r"\1", text)
+
     # 5. Fix invalid JSON escape sequences
-    #    Valid: \" \\ \/ \b \f \n \r \t \uXXXX
-    #    Everything else: drop the backslash
+    # Valid: \" \\ \/ \b \f \n \r \t \uXXXX
+    # Everything else: drop the backslash
     valid_esc = set('"\\/bfnrtu')
     result = []
     i = 0
@@ -77,11 +131,32 @@ def _extract_json(raw: str) -> str:
         else:
             result.append(c)
             i += 1
-    return "".join(result)
+    text = "".join(result)
+
+    # 6. First parse attempt (fast path -- already valid)
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+
+    # 7. Apply aggressive repair and retry
+    repaired = _repair_json(text)
+    # Strip trailing commas again after repair
+    repaired = re.sub(r",\s*([}\]])", r"\1", repaired)
+    try:
+        json.loads(repaired)
+        return repaired
+    except json.JSONDecodeError:
+        pass
+
+    # 8. Return best effort so caller gets the parse error with context
+    return repaired
+
 
 class FieldResult(BaseModel):
     name: str
-    status: str                   # PASS | REVIEW | FAIL
+    status: str  # PASS | REVIEW | FAIL
     found_on_label: Optional[str]
     reference_value: Optional[str]
     note: Optional[str]
@@ -89,7 +164,7 @@ class FieldResult(BaseModel):
 
 class AssessmentResult(BaseModel):
     submission_id: str
-    decision: str                 # APPROVE | REVIEW | DENY
+    decision: str  # APPROVE | REVIEW | DENY
     brand_name: Optional[str]
     reasoning: Optional[str]
     fields: list[FieldResult]
@@ -97,7 +172,10 @@ class AssessmentResult(BaseModel):
 
     @classmethod
     def from_llm_response(
-        cls, raw: str, submission_id: str, model: str
+        cls,
+        raw: str,
+        submission_id: str,
+        model: str,
     ) -> "AssessmentResult":
         """Parse LLM response with robust JSON extraction."""
         try:
@@ -120,15 +198,16 @@ class AssessmentResult(BaseModel):
                 fields        = [],
                 model         = model,
             )
+
     def post_process(self) -> "AssessmentResult":
         """
         Enforce hard compliance rules after the LLM responds.
 
         Rules:
-        1. health_warning: if found_on_label lacks both statutory clauses,
-           force status=FAIL. "Contains Sulfites" alone is always FAIL.
-        2. Any field status==FAIL forces decision=DENY.
-        3. Prepend enforcement note to reasoning.
+          1. health_warning: if found_on_label lacks both statutory clauses,
+             force status=FAIL.  "Contains Sulfites" alone is always FAIL.
+          2. Any field status==FAIL forces decision=DENY.
+          3. Prepend enforcement note to reasoning.
         """
         enforced_fails: list[str] = []
 
@@ -154,12 +233,11 @@ class AssessmentResult(BaseModel):
 def _enforce_health_warning(field: FieldResult):
     """
     Check a health_warning FieldResult against the statutory text.
-    Returns (field, fail_reason_or_None). Mutates field in place if violated.
+    Returns (field, fail_reason_or_None).  Mutates field in place if violated.
     """
     found = (field.found_on_label or "").lower().strip()
-
-    has_clause1 = _HW_CLAUSE_1 in found
-    has_clause2 = _HW_CLAUSE_2 in found
+    has_clause1  = _HW_CLAUSE_1 in found
+    has_clause2  = _HW_CLAUSE_2 in found
     is_false_pos = any(fp in found for fp in _HW_FALSE_POSITIVES)
 
     if has_clause1 and has_clause2:
