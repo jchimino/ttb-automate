@@ -180,7 +180,7 @@ def log_decision(result: AssessmentResult, strategy: str, raw: str):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def _resize_image(img_bytes: bytes, max_px: int = 512) -> bytes:
+def _resize_image(img_bytes: bytes, max_px: int = 320) -> bytes:
     img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
     w, h = img.size
     if max(w, h) > max_px:
@@ -296,7 +296,7 @@ async def run_vision(label_bytes, form_bytes, submission_id):
     )
 
     raw = await call_ollama(prompt, all_images, model=OLLAMA_MODEL)
-    result = AssessmentResult.from_llm_response(raw, submission_id, OLLAMA_MODEL)
+    result = AssessmentResult.from_llm_response(raw, submission_id, OLLAMA_MODEL).post_process()
     return result, raw
 
 
@@ -335,11 +335,11 @@ async def run_reconcile(label_bytes, form_bytes, submission_id):
     if USING_CLOUD_API:
         print(f"[reconcile] → Anthropic ({ANTHROPIC_MODEL})")
         raw = await call_anthropic(prompt)
-        result = AssessmentResult.from_llm_response(raw, submission_id, ANTHROPIC_MODEL)
+        result = AssessmentResult.from_llm_response(raw, submission_id, ANTHROPIC_MODEL).post_process()
     else:
         print(f"[reconcile] → Ollama ({TEXT_MODEL})")
         raw = await call_ollama(prompt, all_images, model=TEXT_MODEL)
-        result = AssessmentResult.from_llm_response(raw, submission_id, TEXT_MODEL)
+        result = AssessmentResult.from_llm_response(raw, submission_id, TEXT_MODEL).post_process()
 
     if not ocr_text.strip() and result.decision == "APPROVE":
         result.decision = "REVIEW"
