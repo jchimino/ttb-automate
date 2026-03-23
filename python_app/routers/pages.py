@@ -18,7 +18,6 @@ _DEMO_ROLES = {'industry', 'staff', 'admin'}
 # Context variables passed to all templates
 def get_context(request: Request):
     return {
-        "request": request,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -50,7 +49,7 @@ async def landing(request: Request):
         dest = '/industry/dashboard' if role == 'industry' else '/staff/dashboard'
         return RedirectResponse(url=dest, status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("landing.html", context)
+    return templates.TemplateResponse(request, "landing.html", context)
 
 
 @router.get("/auth", response_class=HTMLResponse)
@@ -64,7 +63,7 @@ async def auth(request: Request):
         dest = '/industry/dashboard' if role == 'industry' else '/staff/dashboard'
         return RedirectResponse(url=dest, status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("auth.html", context)
+    return templates.TemplateResponse(request, "auth.html", context)
 
 
 @router.get("/verify", response_class=HTMLResponse)
@@ -73,14 +72,14 @@ async def verify(request: Request):
     if not require_auth(request):
         return RedirectResponse(url='/auth?next=/verify', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("verify.html", context)
+    return templates.TemplateResponse(request, "verify.html", context)
 
 
 @router.get("/regulations", response_class=HTMLResponse)
 async def regulations(request: Request):
     """Regulatory reference page"""
     context = get_context(request)
-    return templates.TemplateResponse("regulations.html", context)
+    return templates.TemplateResponse(request, "regulations.html", context)
 
 
 @router.get("/history", response_class=HTMLResponse)
@@ -89,7 +88,7 @@ async def history(request: Request):
     if not require_auth(request):
         return RedirectResponse(url='/auth?next=/history', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("history.html", context)
+    return templates.TemplateResponse(request, "history.html", context)
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -98,7 +97,7 @@ async def settings(request: Request):
     if not require_auth(request):
         return RedirectResponse(url='/auth?next=/settings', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("settings.html", context)
+    return templates.TemplateResponse(request, "settings.html", context)
 
 
 @router.get("/industry/dashboard", response_class=HTMLResponse)
@@ -107,7 +106,7 @@ async def industry_dashboard(request: Request):
     if not require_auth(request, {'industry', 'admin', 'staff'}):
         return RedirectResponse(url='/auth?next=/industry/dashboard', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("industry/dashboard.html", context)
+    return templates.TemplateResponse(request, "industry/dashboard.html", context)
 
 
 @router.get("/industry/applications/{app_id}", response_class=HTMLResponse)
@@ -117,7 +116,7 @@ async def application_detail(request: Request, app_id: str):
         return RedirectResponse(url=f'/auth?next=/industry/applications/{app_id}', status_code=302)
     context = get_context(request)
     context["app_id"] = app_id
-    return templates.TemplateResponse("industry/application_detail.html", context)
+    return templates.TemplateResponse(request, "industry/application_detail.html", context)
 
 
 @router.get("/staff/dashboard", response_class=HTMLResponse)
@@ -126,7 +125,7 @@ async def staff_dashboard(request: Request):
     if not require_auth(request, {'staff', 'admin'}):
         return RedirectResponse(url='/auth?next=/staff/dashboard', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("staff/dashboard.html", context)
+    return templates.TemplateResponse(request, "staff/dashboard.html", context)
 
 
 @router.get("/staff/audit-log", response_class=HTMLResponse)
@@ -135,7 +134,7 @@ async def audit_log(request: Request):
     if not require_auth(request, {'staff', 'admin'}):
         return RedirectResponse(url='/auth?next=/staff/audit-log', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("staff/audit_log.html", context)
+    return templates.TemplateResponse(request, "staff/audit_log.html", context)
 
 
 @router.get("/admin/quarantine", response_class=HTMLResponse)
@@ -144,7 +143,7 @@ async def quarantine(request: Request):
     if not require_auth(request, {'admin'}):
         return RedirectResponse(url='/auth?next=/admin/quarantine', status_code=302)
     context = get_context(request)
-    return templates.TemplateResponse("staff/quarantine.html", context)
+    return templates.TemplateResponse(request, "staff/quarantine.html", context)
 
 
 # ── Documentation pages ───────────────────────────────────────────────────────
@@ -166,7 +165,7 @@ async def docs_page(request: Request, doc_name: str):
     context = get_context(request)
     context["doc_name"]  = doc_name
     context["doc_title"] = title
-    return templates.TemplateResponse("docs.html", context)
+    return templates.TemplateResponse(request, "docs.html", context)
 
 
 @router.get("/api/docs/{doc_name}", response_class=PlainTextResponse)
