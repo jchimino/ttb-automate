@@ -1,22 +1,34 @@
 {
-  "name": "TTB Label Assessment",
+  "name": "TTB Label Assessment (Hybrid)",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
         "path": "ttb-submission",
-        "responseMode": "responseNode",
-        "options": {}
+        "responseMode": "responseNode"
       },
-      "id": "a1b2c3d4-0001-0001-0001-a1b2c3d40001",
-      "name": "Webhook \u2014 Receive Submission",
+      "id": "node-webhook",
+      "name": "Webhook — Receive Submission",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [
-        0,
-        240
-      ],
-      "webhookId": "ttb-submission"
+      "position": [0, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $env.ANTHROPIC_API_KEY }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "node-check-api",
+      "name": "Use Anthropic?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [220, 240]
     },
     {
       "parameters": {
@@ -30,251 +42,90 @@
               "parameterType": "formBinaryData",
               "name": "label_images",
               "inputDataFieldName": "={{ $json.label_image_field || 'label_image' }}"
-            },
-            {
-              "name": "submission_id",
-              "value": "={{ $json.submission_id || $now.toISO() }}"
             }
           ]
-        },
-        "options": {
-          "timeout": 300000
         }
       },
-      "id": "a1b2c3d4-0002-0002-0002-a1b2c3d40002",
-      "name": "POST \u2192 /assess",
+      "id": "node-ollama",
+      "name": "Local Ollama (Fallover)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        220,
-        240
-      ]
+      "position": [480, 340]
+    },
+    {
+      "parameters": {
+        "model": "claude-3-5-sonnet-latest",
+        "prompt": "Analyze this TTB label for compliance. Return JSON with decision, reasoning, and fields.",
+        "options": {}
+      },
+      "id": "node-anthropic",
+      "name": "Anthropic API (Primary)",
+      "type": "n8n-nodes-base.anthropicChatModel",
+      "typeVersion": 1,
+      "position": [480, 140],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Anthropic Account"
+        }
+      }
     },
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": false,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
+          "string": [
             {
-              "id": "cond-approve",
               "leftValue": "={{ $json.decision }}",
               "rightValue": "APPROVE",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
+              "operator": "equals"
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
-      "id": "a1b2c3d4-0003-0003-0003-a1b2c3d40003",
+      "id": "node-decision",
       "name": "Decision?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [
-        440,
-        240
-      ]
+      "position": [750, 240]
     },
     {
       "parameters": {
-        "jsCode": "// Handle APPROVE \u2014 update TTB Automate application status\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'APPROVE',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: assessment.fields,\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'approved',\n    processed_at: new Date().toISOString(),\n  }\n};"
+        "jsCode": "const assessment = $input.first().json;\nreturn { json: { ...assessment, ttb_status: 'approved', processed_at: new Date().toISOString() } };"
       },
-      "id": "a1b2c3d4-0004-0004-0004-a1b2c3d40004",
+      "id": "node-approve",
       "name": "Handle APPROVE",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        660,
-        80
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": false,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
-            {
-              "id": "cond-review",
-              "leftValue": "={{ $json.decision }}",
-              "rightValue": "REVIEW",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "a1b2c3d4-0005-0005-0005-a1b2c3d40005",
-      "name": "Review or Deny?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        660,
-        360
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Handle REVIEW \u2014 flag for human review\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'REVIEW',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: assessment.fields,\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'pending_review',\n    review_reason: 'Flagged by local LLM for manual TTB staff review',\n    processed_at: new Date().toISOString(),\n  }\n};"
-      },
-      "id": "a1b2c3d4-0006-0006-0006-a1b2c3d40006",
-      "name": "Handle REVIEW",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        880,
-        260
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Handle DENY \u2014 reject the label\nconst assessment = $input.first().json;\n\nreturn {\n  json: {\n    submission_id: assessment.submission_id,\n    decision: 'DENY',\n    brand_name: assessment.brand_name,\n    reasoning: assessment.reasoning,\n    fields: (assessment.fields || []).filter(f => f.status === 'FAIL'),\n    strategy: assessment.strategy,\n    active_model: assessment.active_model,\n    ttb_status: 'rejected',\n    rejection_reason: assessment.reasoning || 'Label failed TTB compliance check',\n    processed_at: new Date().toISOString(),\n  }\n};"
-      },
-      "id": "a1b2c3d4-0007-0007-0007-a1b2c3d40007",
-      "name": "Handle DENY",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        880,
-        460
-      ]
+      "position": [950, 100]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {
-          "responseCode": 200
-        }
+        "responseBody": "={{ JSON.stringify($json) }}"
       },
-      "id": "a1b2c3d4-0008-0008-0008-a1b2c3d40008",
+      "id": "node-respond",
       "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [
-        1100,
-        240
-      ]
+      "position": [1200, 240]
     }
   ],
   "connections": {
-    "Webhook \u2014 Receive Submission": {
+    "Webhook — Receive Submission": { "main": [[{ "node": "Use Anthropic?", "type": "main", "index": 0 }]] },
+    "Use Anthropic?": {
       "main": [
-        [
-          {
-            "node": "POST \u2192 /assess",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Anthropic API (Primary)", "type": "main", "index": 0 }],
+        [{ "node": "Local Ollama (Fallover)", "type": "main", "index": 0 }]
       ]
     },
-    "POST \u2192 /assess": {
-      "main": [
-        [
-          {
-            "node": "Decision?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
+    "Anthropic API (Primary)": { "main": [[{ "node": "Decision?", "type": "main", "index": 0 }]] },
+    "Local Ollama (Fallover)": { "main": [[{ "node": "Decision?", "type": "main", "index": 0 }]] },
     "Decision?": {
       "main": [
-        [
-          {
-            "node": "Handle APPROVE",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Review or Deny?",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Handle APPROVE", "type": "main", "index": 0 }],
+        [{ "node": "Handle DENY", "type": "main", "index": 0 }] 
       ]
     },
-    "Review or Deny?": {
-      "main": [
-        [
-          {
-            "node": "Handle REVIEW",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Handle DENY",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle APPROVE": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle REVIEW": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Handle DENY": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null,
-  "meta": {
-    "instanceId": "ttb-express-local"
-  },
-  "tags": [
-    {
-      "name": "TTB"
-    }
-  ],
-  "id": "ebe13933-34eb-445f-9515-3947d9f3fa06"
+    "Handle APPROVE": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  }
 }
