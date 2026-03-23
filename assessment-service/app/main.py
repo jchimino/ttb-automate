@@ -213,6 +213,22 @@ async def call_ocr(images: list[bytes]) -> dict:
 
 
 # ── Strategies ────────────────────────────────────────────────────────────────
+
+def _format_rag_context(chunks: list[dict]) -> str:
+    """Format retrieved CFR chunks as a structured context block for injection into the prompt."""
+    if not chunks:
+        return ""
+    lines = ["\n═══════════════════════════════════════════════════════"]
+    lines.append("RETRIEVED REGULATORY CONTEXT (27 CFR — live from database)")
+    lines.append("Use these authoritative sections to evaluate compliance.")
+    lines.append("═══════════════════════════════════════════════════════")
+    for chunk in chunks:
+        lines.append(f"\n[{chunk['section']} — {chunk['topic']}]")
+        lines.append(chunk['chunk_text'])
+    lines.append("═══════════════════════════════════════════════════════\n")
+    return "\n".join(lines)
+
+
 async def run_vision(label_bytes, form_bytes, submission_id):
     """
     Primary path: llava:7b reads the label image directly.
@@ -237,6 +253,7 @@ async def run_vision(label_bytes, form_bytes, submission_id):
         has_form=form_bytes is not None,
         submission_id=submission_id,
         ocr_supplement=ocr_text,
+        rag_context=rag_context,
     )
 
     raw = await call_ollama(prompt, all_images, model=OLLAMA_MODEL)
@@ -257,11 +274,23 @@ async def run_reconcile(label_bytes, form_bytes, submission_id):
     )
     print(f"[reconcile] OCR complete — {len(ocr_text)} chars")
 
+    # RAG: retrieve relevant CFR sections for this submission
+    rag_context = ""
+    if RAG_READY:
+        rag_chunks = await retrieve_relevant_chunks(
+            query=f"label compliance class type health warning government",
+            top_k=4,
+        )
+        rag_context = _format_rag_context(rag_chunks)
+        if rag_context:
+            print(f"[reconcile] RAG: injected {len(rag_chunks)} CFR chunks into prompt")
+
     prompt = build_prompt_ocr(
         ocr_text=ocr_text,
         n_labels=len(label_bytes),
         has_form=form_bytes is not None,
         submission_id=submission_id,
+        rag_context=rag_context,
     )
 
     if USING_CLOUD_API:
@@ -331,4 +360,5 @@ async def health():
         "cloud_provider": "Anthropic" if USING_CLOUD_API else None,
         "vision_model": OLLAMA_MODEL,
         "text_model": TEXT_MODEL,
+        "rag_ready": RAG_READY,
     }
