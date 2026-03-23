@@ -1,6 +1,10 @@
 # TTB Automate — AI-Powered Label Compliance
 
-A containerized proof-of-concept that automates the Certificate of Label Approval (COLA) screening process for alcohol beverage labels using on-premises AI. No cloud APIs. No outbound data transfers. One command to run.
+A containerized proof-of-concept that automates the Certificate of Label Approval (COLA) screening process for alcohol beverage labels using on-premises AI. 
+The goal is to intercept COLA submissions, intercept their images, extract text, and confirm data is same to their application and is permissible by CFR.
+While this repository provides an on premise solution, the alternative for an API cloud provider to host the tool is also feasible. 
+A prototype can be found [https://constitutes-blowing-previous-proposed.trycloudflare.com], althought for security reasons outline in the SECURITY.md, production environments should host services locally.
+As well, future considerations are outlined in the documentation below for additional benefits, tools, and services.
 
 ```bash
 # 1. Clone the repository
