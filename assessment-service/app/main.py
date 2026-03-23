@@ -30,8 +30,10 @@ _VISION_MODEL_NAMES = (
     "llama3.2-vision", "minicpm-v", "cogvlm", "instructblip",
 )
 
+# Globals set by _init_strategy() at startup.
+# Default to reconcile/TEXT_MODEL -- overridden if GPU + vision model found.
 STRATEGY     = "unknown"
-ACTIVE_MODEL = OLLAMA_MODEL
+ACTIVE_MODEL = TEXT_MODEL
 MODEL_READY  = False
 
 
@@ -41,7 +43,6 @@ def _is_vision_model(name: str) -> bool:
 
 async def _init_strategy():
     global STRATEGY, ACTIVE_MODEL, MODEL_READY
-
     vision_ready = False
     attempt = 0
     print(f"[startup] Probing Ollama for {OLLAMA_MODEL} ...")
@@ -95,7 +96,7 @@ async def _init_strategy():
                 r = await client.post(
                     f"{OLLAMA_HOST}/api/generate",
                     json={
-                        "model": ACTIVE_MODEL,
+                        "model":  ACTIVE_MODEL,
                         "prompt": "hi",
                         "stream": False,
                         "options": {"num_predict": 1},
@@ -153,7 +154,7 @@ def _resize_image(img_bytes: bytes, max_px: int = 512) -> bytes:
     w, h = img.size
     if max(w, h) > max_px:
         scale = max_px / max(w, h)
-        img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+        img   = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
@@ -173,12 +174,12 @@ async def call_ollama(prompt: str, images: list[bytes], model: str) -> str:
         payload["images"] = encoded
     async with httpx.AsyncClient(timeout=300.0) as client:
         r = await client.post(f"{OLLAMA_HOST}/api/generate", json=payload)
-    if not r.is_success:
-        raise RuntimeError(f"Ollama {r.status_code}: {r.text[:300]}")
-    data = r.json()
-    if "error" in data:
-        raise RuntimeError(f"Ollama error: {data['error']}")
-    return data.get("response") or ""
+        if not r.is_success:
+            raise RuntimeError(f"Ollama {r.status_code}: {r.text[:300]}")
+        data = r.json()
+        if "error" in data:
+            raise RuntimeError(f"Ollama error: {data['error']}")
+        return data.get("response") or ""
 
 
 async def call_ocr(images: list[bytes]) -> dict:
@@ -189,7 +190,7 @@ async def call_ocr(images: list[bytes]) -> dict:
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.post(f"{OCR_HOST}/extract", files=files)
         r.raise_for_status()
-    return r.json()
+        return r.json()
 
 
 async def run_vision(
@@ -208,6 +209,7 @@ async def run_vision(
         print(f"[vision] OCR confirmation available -- {len(ocr_text)} chars")
     except Exception as e:
         print(f"[vision] OCR confirmation unavailable (non-fatal): {e}")
+
     prompt = build_prompt_vision(
         n_labels=len(label_bytes),
         has_form=form_bytes is not None,
@@ -225,12 +227,13 @@ async def run_reconcile(
     submission_id: str,
 ) -> tuple[AssessmentResult, str]:
     all_images = ([form_bytes] if form_bytes else []) + label_bytes
-    ocr_data = await call_ocr(all_images)
-    ocr_text = "\n\n".join(
+    ocr_data   = await call_ocr(all_images)
+    ocr_text   = "\n\n".join(
         f"--- Image {p['index'] + 1} ---\n{p['text']}"
         for p in ocr_data.get("pages", [])
     )
     print(f"[reconcile] OCR complete -- {len(ocr_text)} chars extracted")
+
     prompt = build_prompt_ocr(
         ocr_text=ocr_text,
         n_labels=len(label_bytes),
@@ -240,6 +243,7 @@ async def run_reconcile(
     print(f"[reconcile] Sending to {TEXT_MODEL} ...")
     raw    = await call_ollama(prompt, all_images, model=TEXT_MODEL)
     result = AssessmentResult.from_llm_response(raw, submission_id, TEXT_MODEL).post_process()
+
     if not ocr_text.strip() and result.decision == "APPROVE":
         result.decision  = "REVIEW"
         result.reasoning = (
@@ -253,33 +257,42 @@ async def run_reconcile(
 async def assess(
     label_images: list[UploadFile] = File(...),
     form_image:   Optional[UploadFile] = File(None),
-    submission_id: Optional[str] = Form(None),
+    submission_id: Optional[str]  = Form(None),
 ):
     if not submission_id:
         submission_id = (
             f"SUB-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}"
             f"-{uuid.uuid4().hex[:6].upper()}"
         )
+
     label_bytes = [await img.read() for img in label_images]
     form_bytes  = await form_image.read() if form_image else None
+
+    # Determine which strategy to run.
+    # While still loading (STRATEGY == "unknown"), default to reconcile.
+    effective_strategy = STRATEGY if STRATEGY in ("vision", "reconcile") else "reconcile"
+
     try:
-        run = run_vision if STRATEGY == "vision" else run_reconcile
+        run    = run_vision if effective_strategy == "vision" else run_reconcile
         result, raw = await run(label_bytes, form_bytes, submission_id)
+        used_strategy = effective_strategy
     except Exception as exc:
-        print(f"[assess] {STRATEGY} failed: {exc!r}\n{traceback.format_exc()} -- falling back")
+        print(f"[assess] {effective_strategy} failed: {exc!r}\n{traceback.format_exc()} -- falling back")
         try:
-            result, raw = await run_reconcile(label_bytes, form_bytes, submission_id)
+            result, raw  = await run_reconcile(label_bytes, form_bytes, submission_id)
+            used_strategy = "reconcile"
         except Exception as exc2:
             from fastapi import HTTPException
             raise HTTPException(
                 status_code=500,
                 detail=f"Assessment failed: {type(exc2).__name__}: {exc2}",
             ) from exc2
-    log_decision(result, STRATEGY, raw)
+
+    log_decision(result, used_strategy, raw)
     return JSONResponse(content={
         **result.dict(),
-        "strategy":     STRATEGY,
-        "active_model": ACTIVE_MODEL,
+        "strategy":     used_strategy,
+        "active_model": result.model,  # reflect what was actually used
     })
 
 
