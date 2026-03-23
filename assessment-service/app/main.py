@@ -218,7 +218,11 @@ async def call_ollama(prompt: str, images: list[bytes], model: str) -> str:
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "options": {"temperature": 0.1, "num_predict": 800},
+        "options": {
+            "temperature": 0.1,
+            "num_predict": 800,
+            "num_ctx": 2048,     # limit context window to reduce VRAM usage
+        },
     }
     if resized:
         payload["images"] = [base64.standard_b64encode(img).decode() for img in resized]
