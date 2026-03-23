@@ -200,17 +200,38 @@ CFR_CHUNKS: list[tuple[str, str, Optional[str], str, str]] = [
 # ── Embedding via Ollama ──────────────────────────────────────────────────────
 
 async def _embed(text: str, client: httpx.AsyncClient) -> list[float] | None:
-    """Get embedding vector from Ollama nomic-embed-text."""
+    """Get embedding vector from Ollama nomic-embed-text.
+
+    Tries /api/embed (Ollama 0.3+) first, falls back to /api/embeddings.
+    """
+    # Modern endpoint (Ollama >= 0.3): returns {"embeddings": [[...floats...]]}
+    try:
+        r = await client.post(
+            f"{OLLAMA_HOST}/api/embed",
+            json={"model": EMBED_MODEL, "input": text},
+            timeout=60.0,
+        )
+        if r.is_success:
+            embeddings = r.json().get("embeddings")
+            if embeddings and len(embeddings) > 0:
+                return embeddings[0]
+    except Exception:
+        pass
+
+    # Legacy endpoint (Ollama < 0.3): returns {"embedding": [...floats...]}
     try:
         r = await client.post(
             f"{OLLAMA_HOST}/api/embeddings",
             json={"model": EMBED_MODEL, "prompt": text},
-            timeout=30.0,
+            timeout=60.0,
         )
         if r.is_success:
-            return r.json().get("embedding")
+            emb = r.json().get("embedding")
+            if emb:
+                return emb
     except Exception as e:
         print(f"[cfr_loader] Embedding error: {e}")
+
     return None
 
 
@@ -262,6 +283,47 @@ def _get_conn():
     return psycopg2.connect(DATABASE_URL)
 
 
+def _ensure_schema() -> bool:
+    """Create the vector extension and cfr_chunks table if missing.
+
+    Self-healing: works even if the postgres volume predates pgvector migration
+    and init.sql never ran. Safe to call every startup (all DDL uses IF NOT EXISTS).
+    """
+    ddl = """
+        CREATE EXTENSION IF NOT EXISTS vector;
+
+        CREATE TABLE IF NOT EXISTS cfr_chunks (
+            id          SERIAL PRIMARY KEY,
+            cfr_part    TEXT NOT NULL,
+            section     TEXT NOT NULL,
+            commodity   TEXT,
+            topic       TEXT NOT NULL,
+            chunk_text  TEXT NOT NULL,
+            embedding   vector(384),
+            source      TEXT DEFAULT 'eCFR',
+            loaded_at   TIMESTAMP DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_cfr_embedding
+            ON cfr_chunks USING ivfflat (embedding vector_cosine_ops)
+            WITH (lists = 50);
+
+        CREATE INDEX IF NOT EXISTS idx_cfr_topic     ON cfr_chunks(topic);
+        CREATE INDEX IF NOT EXISTS idx_cfr_commodity ON cfr_chunks(commodity);
+    """
+    try:
+        conn = _get_conn()
+        cur = conn.cursor()
+        cur.execute(ddl)
+        conn.commit()
+        cur.close(); conn.close()
+        print("[cfr_loader] Schema verified/created.")
+        return True
+    except Exception as e:
+        print(f"[cfr_loader] Schema ensure failed: {e}")
+        return False
+
+
 def _is_loaded() -> bool:
     """Return True if cfr_chunks already has data (skip reload)."""
     try:
@@ -311,6 +373,10 @@ async def load_cfr_chunks(force: bool = False) -> bool:
     Returns True on success, False if embedding service unavailable.
     """
     import asyncio
+
+    # Ensure schema exists — handles postgres volumes that predate pgvector.
+    if not _ensure_schema():
+        print("[cfr_loader] WARNING: Could not ensure schema — RAG load may fail")
 
     if not force and _is_loaded():
         print(f"[cfr_loader] cfr_chunks already populated — skipping (use --force to reload)")
