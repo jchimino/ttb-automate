@@ -148,7 +148,7 @@ FIELD STATUS RULES
 """
 
 
-def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str, ocr_supplement: str = "") -> str:
+def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str, ocr_supplement: str = "", rag_context: str = "") -> str:
     """
     Primary path — llava:7b reads the label images directly.
     If OCR text is provided as a supplement, it is appended as confirmatory
@@ -166,6 +166,10 @@ def build_prompt_vision(n_labels: int, has_form: bool, submission_id: str, ocr_s
     else:
         prompt += f"\nYou are shown {n_labels} label image(s). No application form was provided — assess against TTB requirements only."
 
+    # Inject RAG-retrieved CFR context (authoritative regulatory text)
+    if rag_context.strip():
+        prompt += rag_context
+
     if ocr_supplement.strip():
         prompt += f"""
 
@@ -181,13 +185,17 @@ If OCR and visual read conflict, trust your visual interpretation of the image.
     return prompt
 
 
-def build_prompt_ocr(ocr_text: str, n_labels: int, has_form: bool, submission_id: str) -> str:
+def build_prompt_ocr(ocr_text: str, n_labels: int, has_form: bool, submission_id: str, rag_context: str = "") -> str:
     """
     Fallback path — OCR text is the primary input (no GPU / llava unavailable).
     Uses identical CFR rules as the vision path and the Anthropic BAM verifier.
     """
     prompt = "You are a TTB (Alcohol and Tobacco Tax and Trade Bureau) compliance specialist.\n\n"
     prompt += _TTB_RULES
+
+    # Inject RAG-retrieved CFR context (authoritative regulatory text)
+    if rag_context.strip():
+        prompt += rag_context
 
     prompt += f"""
 The following text was extracted from the submission images by OCR (four rotation
