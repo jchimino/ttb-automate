@@ -1,15 +1,15 @@
 # TTB Automate — AI-Powered Label Compliance
 
-A containerized proof-of-concept that automates the Certificate of Label Approval (COLA) screening process for alcohol beverage labels using on-premises AI. 
+A containerized intelligence layer designed to streamline the Certificate of Label Approval (COLA) screening process. By leveraging on-premises multimodal LLMs, it provides real time automated screening for alcohol beverage labels against 27 CFR requirements before they enter the human review queue. 
 
-The goal is to intercept COLA submissions, intercept their images, extract text, and confirm data is same to their application and in accordance with what is permissible by CFR.
-While this repository provides an on premise solution, the alternative for an API cloud provider to host the tool is also feasible. 
+# Objective
+The system intercepts COLA applications at the point of submission to perform automated 'preflight' verification. By extracting imagery and text and cross referencing them with the Code of Federal Regulations (CFR), the tool categorizes applications into three actionabl paths. This ensures that human staff only interact withc ases requiring nuanced judgement, effectively eliminating the administrative burden of clear pass/fail applications.
 
-A prototype can be found [https://constitutes-blowing-previous-proposed.trycloudflare.com], although for security reasons outline in the SECURITY.md, production environments should host services locally.
+While this repository suggests an on premise solution, the alternative for an API cloud provider to host the tool is also feasible. A prototype can be found at [https://constitutes-blowing-previous-proposed.trycloudflare.com], although for security reasons outlined in the SECURITY.md, production environments should host services locally.
 
 As well, future considerations, such as integrating machine learning and peripheral tools, are outlined in the documentation below for additional benefits and services.
 
-To begin, follow the below steps.
+To begin, follow the below steps. (a GPU with minimum specs of 6gb VRAM is recommended)
 ```bash
 # 1. Clone the repository
 git clone https://github.com/jchimino/ttb-automate.git
