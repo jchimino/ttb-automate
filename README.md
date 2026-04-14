@@ -5,7 +5,7 @@ A containerized intelligence layer designed to streamline the Certificate of Lab
 # Objective
 The system intercepts COLA applications at the point of submission to perform automated 'preflight' verification. By extracting imagery and text and cross referencing them with the Code of Federal Regulations (CFR), the tool categorizes applications into three actionabl paths. This ensures that human staff only interact withc ases requiring nuanced judgement, effectively eliminating the administrative burden of clear pass/fail applications.
 
-While this repository suggests an on premise solution, the alternative for an API cloud provider to host the tool is also feasible. A prototype can be found at [(https://campaigns-molecules-tyler-completion.trycloudflare.com)], although for security reasons outlined in the SECURITY.md, production environments should host services locally.
+While this repository suggests an on premise solution, the alternative for an API cloud provider to host the tool is also feasible. A prototype can be found at [https://campaigns-molecules-tyler-completion.trycloudflare.com], although for security reasons outlined in the SECURITY.md, production environments should host services locally.
 
 As well, future considerations, such as integrating machine learning and peripheral tools, are outlined in the documentation below for additional benefits and services.
 
